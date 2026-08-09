@@ -20,6 +20,7 @@ cmb = ["camb", "pixell"]
 
 [project.scripts]
 flamingo-mock-maps = "flamingo_mock.cli:main"
+flamingo-szifi = "flamingo_mock.szifi.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
