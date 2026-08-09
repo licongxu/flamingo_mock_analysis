@@ -1,0 +1,16 @@
+=== configs N_deproj / ILC_deproj ===
+configs/hilc_y_flamingo_npipe_splitA.yml:29:ILC_preserved_comp: tSZ
+configs/hilc_y_flamingo_npipe_splitA.yml:30:N_deproj: 0
+configs/hilc_y_flamingo_npipe_splitA.yml:31:ILC_deproj_comps: []
+configs/hilc_y_flamingo_npipe_splitB.yml:29:ILC_preserved_comp: tSZ
+configs/hilc_y_flamingo_npipe_splitB.yml:30:N_deproj: 0
+configs/hilc_y_flamingo_npipe_splitB.yml:31:ILC_deproj_comps: []
+configs/nilc_y_flamingo_npipe_splitA.yml:29:ILC_preserved_comp: tSZ
+configs/nilc_y_flamingo_npipe_splitA.yml:30:N_deproj: 0
+configs/nilc_y_flamingo_npipe_splitA.yml:31:ILC_deproj_comps: []
+=== config.py defaults ===
+4:McCarthy & Hill (2024) sample configs (`sample_run_Planck_tsz_nodeproj.yml`,
+60:    preserved_comp: str = "tSZ"
+104:            "ILC_preserved_comp": self.preserved_comp,
+105:            "N_deproj": 0,
+106:            "ILC_deproj_comps": [],

@@ -58,20 +58,46 @@ class ILCConfig:
     taper_width: int = 200  # paper-scale; must be < ELLMAX and leave headroom
     ilc_beam_fwhm_arcmin: float = ILC_BEAM_FWHM_ARCMIN
     preserved_comp: str = "tSZ"
+    # Constrained ILC: deproject contaminants (McCarthy & Hill 2024 §III.C / §V).
+    # Default 0 = unconstrained baseline (nodeproj). Example paper choices:
+    # N_deproj=1, ILC_deproj_comps=['CIB'] or ['CMB'];
+    # N_deproj=2, ['CIB','CIB_dbeta'] (sample_run_Planck_tsz_deproj.yml).
+    n_deproj: int = 0
+    deproj_comps: tuple[str, ...] = ()
     ilc_backend: str = "jax"
     mc: int = NPIPE_MC_DEFAULT
 
     def __post_init__(self) -> None:
         if self.method not in METHODS:
             raise ValueError(f"method must be one of {METHODS}, got {self.method!r}")
+        self.deproj_comps = tuple(self.deproj_comps)
+        if self.n_deproj < 0:
+            raise ValueError(f"n_deproj must be >= 0, got {self.n_deproj}")
+        if self.n_deproj != len(self.deproj_comps):
+            raise ValueError(
+                f"n_deproj={self.n_deproj} but deproj_comps has "
+                f"{len(self.deproj_comps)} entries {self.deproj_comps}"
+            )
+        if self.n_deproj + 1 > len(self.freqs):
+            raise ValueError(
+                f"not enough channels ({len(self.freqs)}) to deproject "
+                f"{self.n_deproj} components while preserving one"
+            )
 
     @property
     def output_dir(self) -> Path:
-        return self.paths.output_dir(self.method, self.split)
+        base = self.paths.output_dir(self.method, self.split)
+        if self.n_deproj == 0:
+            return base
+        tag = "deproj_" + "_".join(self.deproj_comps)
+        return base.parent / f"{base.name}_{tag}"
 
     @property
     def output_suffix(self) -> str:
-        return f"_{self.method}_y_npipe_split{self.split}"
+        suf = f"_{self.method}_y_npipe_split{self.split}"
+        if self.n_deproj:
+            suf += "_deproj_" + "_".join(self.deproj_comps)
+        return suf
 
     def to_dict(self) -> dict:
         """pyILC YAML keys (mirrors pyilc/input.py parsing)."""
@@ -102,8 +128,8 @@ class ILCConfig:
             # Common resolution for the ILC (paper sample: 10 arcmin).
             "perform_ILC_at_beam": self.ilc_beam_fwhm_arcmin,
             "ILC_preserved_comp": self.preserved_comp,
-            "N_deproj": 0,
-            "ILC_deproj_comps": [],
+            "N_deproj": int(self.n_deproj),
+            "ILC_deproj_comps": list(self.deproj_comps),
             "N_maps_xcorr": 0,
             # Planck galactic × point-source product for both cov and wavelet stages.
             "mask_before_covariance_computation": list(mask_entry),
@@ -132,6 +158,15 @@ class ILCConfig:
 
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
+        deproj_note = (
+            f"# Deprojection: N_deproj={self.n_deproj}"
+            + (
+                f" comps={list(self.deproj_comps)}"
+                if self.n_deproj
+                else " (unconstrained / nodeproj baseline)"
+            )
+            + "\n"
+        )
         header = (
             f"# pyILC {self.method.upper()} Compton-y on FLAMINGO mock skies "
             f"+ Planck NPIPE noise (split {self.split}, mc_{self.mc:05d}).\n"
@@ -142,7 +177,8 @@ class ILCConfig:
             f"# Channel beams = Planck HFI Gaussians from flamingo_mock.ilc.prepare.\n"
             f"# Mask: GAL×PS product (masks/pr4_nilc/Masks.fits fields 1×2) on "
             f"covariance + wavelet stages.\n"
-            f"# ILC weight backend: {self.ilc_backend} (override with PYILC_BACKEND).\n"
+            + deproj_note
+            + f"# ILC weight backend: {self.ilc_backend} (override with PYILC_BACKEND).\n"
         )
         with open(path, "w") as f:
             f.write(header)

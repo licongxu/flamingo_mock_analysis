@@ -1,0 +1,87 @@
+{
+  "COMP_TYPES": [
+    "CMB",
+    "kSZ",
+    "tSZ",
+    "rSZ",
+    "mu",
+    "CIB",
+    "CIB_dbeta",
+    "CIB_dT",
+    "radio",
+    "radio_dbeta",
+    "radio2"
+  ],
+  "nodeproj": {
+    "file": "/tmp/grok-goal-06713f9735c3/implementer/nodeproj.yml",
+    "N_deproj": 0,
+    "ILC_deproj_comps": [],
+    "preserved": "tSZ",
+    "N_freqs": 6,
+    "wavelet": "TopHatHarmonic"
+  },
+  "deproj_CMB": {
+    "file": "/tmp/grok-goal-06713f9735c3/implementer/deproj_CMB.yml",
+    "N_deproj": 1,
+    "ILC_deproj_comps": [
+      "CMB"
+    ],
+    "preserved": "tSZ",
+    "N_freqs": 6,
+    "wavelet": "TopHatHarmonic"
+  },
+  "deproj_CIB": {
+    "file": "/tmp/grok-goal-06713f9735c3/implementer/deproj_CIB.yml",
+    "N_deproj": 1,
+    "ILC_deproj_comps": [
+      "CIB"
+    ],
+    "preserved": "tSZ",
+    "N_freqs": 6,
+    "wavelet": "TopHatHarmonic"
+  },
+  "deproj_CIB_CMB": {
+    "file": "/tmp/grok-goal-06713f9735c3/implementer/deproj_CIB_CMB.yml",
+    "N_deproj": 2,
+    "ILC_deproj_comps": [
+      "CIB",
+      "CMB"
+    ],
+    "preserved": "tSZ",
+    "N_freqs": 6,
+    "wavelet": "TopHatHarmonic"
+  },
+  "deproj_CIB_dbeta": {
+    "file": "/tmp/grok-goal-06713f9735c3/implementer/deproj_CIB_dbeta.yml",
+    "N_deproj": 2,
+    "ILC_deproj_comps": [
+      "CIB",
+      "CIB_dbeta"
+    ],
+    "preserved": "tSZ",
+    "N_freqs": 6,
+    "wavelet": "TopHatHarmonic"
+  },
+  "deproj_CIB_dbeta_dT": {
+    "file": "/tmp/grok-goal-06713f9735c3/implementer/deproj_CIB_dbeta_dT.yml",
+    "N_deproj": 3,
+    "ILC_deproj_comps": [
+      "CIB",
+      "CIB_dbeta",
+      "CIB_dT"
+    ],
+    "preserved": "tSZ",
+    "N_freqs": 6,
+    "wavelet": "TopHatHarmonic"
+  },
+  "nilc_deproj_CIB": {
+    "file": "/tmp/grok-goal-06713f9735c3/implementer/nilc_deproj_CIB.yml",
+    "N_deproj": 1,
+    "ILC_deproj_comps": [
+      "CIB"
+    ],
+    "preserved": "tSZ",
+    "N_freqs": 6,
+    "wavelet": "GaussianNeedlets"
+  }
+}

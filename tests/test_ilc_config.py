@@ -98,6 +98,40 @@ def test_tracked_repo_configs_parse_and_match_writer():
         ]
 
 
+def test_deproj_config_roundtrip_cib(tmp_path):
+    """Constrained ILC: N_deproj + ILC_deproj_comps parse via shipped pyILC."""
+    cfg = ILCConfig(
+        method="hilc",
+        split="A",
+        paths=ILCPaths(),
+        n_deproj=1,
+        deproj_comps=("CIB",),
+    )
+    out = cfg.write(tmp_path / "hilc_deproj_cib.yml")
+    info = ILCInfo(str(out))
+    assert info.N_deproj == 1
+    assert list(info.ILC_deproj_comps) == ["CIB"]
+    assert info.ILC_preserved_comp == "tSZ"
+    assert "deproj_CIB" in str(info.output_dir)
+
+
+def test_deproj_config_rejects_too_many_components():
+    with pytest.raises(ValueError, match="not enough channels"):
+        ILCConfig(
+            method="hilc",
+            n_deproj=6,
+            deproj_comps=("CMB", "kSZ", "CIB", "CIB_dbeta", "CIB_dT", "mu"),
+        )
+
+
+def test_tracked_configs_are_nodeproj_baseline():
+    """Baseline tracked YAMLs intentionally use N_deproj: 0 (no deprojection)."""
+    for path in (HILC_SPLIT_A, HILC_SPLIT_B, NILC_SPLIT_A):
+        info = ILCInfo(str(path))
+        assert info.N_deproj == 0
+        assert list(getattr(info, "ILC_deproj_comps", []) or []) == []
+
+
 def test_mask_product_is_gal_times_ps_not_nilc_only():
     """Combined mask must encode galactic AND point-source cuts."""
     import numpy as np
