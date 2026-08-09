@@ -1,0 +1,15 @@
+# Large map products (live under maps_* or cosmology_data)
+maps_*/
+*.fits
+*.hdf5
+*.h5
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Local scratch / figures that embed huge blobs
+*.npz

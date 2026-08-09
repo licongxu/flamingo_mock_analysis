@@ -1,0 +1,39 @@
+# Harmonic ILC Compton-y on FLAMINGO mock + FFP10 noise split 1 (independent realization).
+# Same beams / ELLMAX as split 0 for cross-split checks.
+
+work_in_healpix: 'yes'
+output_dir: '/home/ext_andyxlcnb_gmail_com/cosmology_data/flamingo_ilc/hilc_output_noise_split1/'
+output_prefix: 'flamingo_'
+output_suffix: '_hilc_y_noise_split1'
+save_weights: 'yes'
+save_as: 'fits'
+
+param_dict_file: '/home/ext_andyxlcnb_gmail_com/software_packages/pyilc/input/fg_SEDs_default_params.yml'
+
+ELLMAX: 3000
+taper_width: 150
+N_side: 2048
+
+wavelet_type: 'TopHatHarmonic'
+BinSize: 50
+
+N_freqs: 3
+bandpass_type: 'DeltaBandpasses'
+freqs_delta_ghz: [100.0, 143.0, 353.0]
+
+freq_map_files:
+  - '/home/ext_andyxlcnb_gmail_com/cosmology_data/flamingo_ilc/inputs_nside2048_noise/sky_CMB_tSZ_CIB_noise_split1_100GHz_nside2048_K.fits'
+  - '/home/ext_andyxlcnb_gmail_com/cosmology_data/flamingo_ilc/inputs_nside2048_noise/sky_CMB_tSZ_CIB_noise_split1_143GHz_nside2048_K.fits'
+  - '/home/ext_andyxlcnb_gmail_com/cosmology_data/flamingo_ilc/inputs_nside2048_noise/sky_CMB_tSZ_CIB_noise_split1_353GHz_nside2048_K.fits'
+
+beam_type: 'Gaussians'
+beam_FWHM_arcmin: [9.66, 7.22, 4.92]
+perform_ILC_at_beam: 5.0
+
+ILC_preserved_comp: 'tSZ'
+N_deproj: 0
+ILC_deproj_comps: []
+
+N_maps_xcorr: 0
+print_timing: 'true'
+ilc_backend: 'numba'
