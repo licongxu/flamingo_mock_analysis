@@ -2,17 +2,17 @@
 
 Examples
 --------
-Full pipeline at native resolution (needs camb + pixell for the CMB step):
+Build per-component maps only (default — no coaddition):
 
     flamingo-mock-maps build
 
-Everything except the CMB (reuses a cached lensed CMB if present):
+Skip the CMB step:
 
-    flamingo-mock-maps build --steps tsz ksz cib coadd
+    flamingo-mock-maps build --steps tsz ksz cib
 
 Quick low-resolution test:
 
-    flamingo-mock-maps build --nside 256 --frequencies 90 217 857
+    flamingo-mock-maps build --nside 256 --frequencies 100 217 857
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import numpy as np
 
 from .config import DEFAULT_FREQUENCIES_GHZ, MockConfig
 
-ALL_STEPS = ("cmb", "tsz", "ksz", "cib", "coadd")
+ALL_STEPS = ("cmb", "tsz", "ksz", "cib")  # coadd omitted — beams/coaddition handled separately
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -33,7 +33,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Synthetic multi-frequency skies from FLAMINGO integrated maps",
     )
     sub = p.add_subparsers(dest="command", required=True)
-    b = sub.add_parser("build", help="Build component and coadded maps")
+    b = sub.add_parser("build", help="Build per-component maps (no coaddition)")
     b.add_argument(
         "--data-dir",
         type=Path,
@@ -64,14 +64,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     b.add_argument(
         "--steps",
         nargs="+",
-        choices=ALL_STEPS,
+        choices=ALL_STEPS + ("coadd",),
         default=list(ALL_STEPS),
-        help="Pipeline steps to run (default: all)",
+        help="Pipeline steps (default: cmb tsz ksz cib; coadd optional, not recommended yet)",
     )
     b.add_argument(
         "--smooth",
         action="store_true",
-        help="Smooth coadded skies with per-frequency Gaussian beams",
+        help="(coadd step only) smooth coadded skies — not used in default workflow",
     )
     return p.parse_args(argv)
 

@@ -7,71 +7,64 @@ packaged into importable source code under `src/flamingo_mock/`; the notebook
 power-spectrum figures (Fig. 8 left, Table 3, Fig. 10, component autos) at the
 native Nside=4096 using this package.
 
-## Sky model
+## Sky model (components stored separately)
 
-Four components, summed in thermodynamic units (uK_CMB) on the full sky:
-
-```
-T_nu = CMB_lensed + dT_tSZ(nu) + dT_kSZ + dT_CIB(nu)
-```
+Four components, each kept as its own map — **not summed together** at this
+stage (beams, coaddition, and noise come later):
 
 * **CMB** — Gaussian realization of the CAMB unlensed TT spectrum (FLAMINGO
   D3A / DES Y3 cosmology), lensed with the FLAMINGO kappa map via pixell.
-* **tSZ** — lensed Compton-y map x non-relativistic f(nu) = x coth(x/2) - 4.
+* **tSZ** — lensed Compton-y map × non-relativistic f(nu) = x coth(x/2) - 4.
 * **kSZ** — lensed Doppler-b map, dT = -T_CMB * b (frequency independent).
-* **CIB** — released bandpass maps at 217/353/545/857 GHz (Jy/sr -> uK_CMB);
-  other frequencies by log-frequency interpolation or greybody-SED scaling
-  from the nearest band at z_eff = 1.5.
+* **CIB** — released bandpass maps at 217/353/545/857 GHz (Jy/sr → uK_CMB);
+  100/143 GHz via greybody-SED scaling from the nearest band at z_eff = 1.5.
 
-Instrumental noise is **not** included yet; it will be added per frequency
-at a later stage.
+Instrumental noise and beam convolution are **not** applied yet.
 
 ## Data
 
 * Input: `/rds/flamingo/L2800N5040/HYDRO_FIDUCIAL/lightcone0_shells`
   (HEALPix Nside=4096 RING FITS; see `data_description.md`).
 * Output: `/rds/rds-lxu/flamingo/integrated_maps_synthetic`
-  (`components/{cmb,cib,tsz,ksz}/` for per-component maps at Planck
-  frequencies 100/143/217/353/545/857 GHz; beam-unconvolved).
+  (`components/{cmb,cib,tsz,ksz}/` — per-component, beam-unconvolved,
+  Planck frequencies 100/143/217/353/545/857 GHz).
 
 ## Install
 
 ```bash
-pip install -e .          # core (tSZ, kSZ, CIB, coadd)
+pip install -e .          # core (tSZ, kSZ, CIB component builders)
 pip install -e ".[cmb]"   # + camb, pixell for the lensed CMB step
 ```
 
 ## Usage
 
 ```bash
-# Full pipeline, Planck 6-channel (100–857 GHz), Nside=4096
+# Build all four components (no coaddition), Planck 6-channel, Nside=4096
 flamingo-mock-maps build
 
-# Or use the notebook (archives FLAMINGO maps + builds multifrequency products):
+# Or use the notebook:
 #   notebooks/build_synthetic_component_maps.ipynb
 
-# Quick low-resolution test (inputs downgraded with ud_grade)
-flamingo-mock-maps build --nside 256 --frequencies 90 217 857
+# Quick low-resolution test
+flamingo-mock-maps build --nside 256 --frequencies 100 217 857
 
-# Skip the expensive CMB lensing (reuses cached components for the coadd)
-flamingo-mock-maps build --steps tsz ksz cib coadd
-
-# Also smooth coadds with per-frequency Gaussian beams
-flamingo-mock-maps build --smooth
+# Skip CMB lensing (reuse cached lensed CMB if present)
+flamingo-mock-maps build --steps tsz ksz cib
 ```
 
 Or from Python:
 
 ```python
 from flamingo_mock import MockConfig
-from flamingo_mock import tsz, ksz, cib
-from flamingo_mock.sky import make_coadd_maps
+from flamingo_mock.config import PLANCK_FREQUENCIES_GHZ
+from flamingo_mock import cmb, tsz, ksz, cib
 
-cfg = MockConfig(nside=256, frequencies=(90.0, 217.0, 857.0))
+cfg = MockConfig(frequencies=PLANCK_FREQUENCIES_GHZ, nside=4096)
 cfg.make_dirs()
-tsz_uK = tsz.make_tsz_maps(cfg)
-ksz_uK = ksz.make_ksz_map(cfg)
-cib_uK = cib.make_cib_maps(cfg)
+cmb.make_lensed_cmb(cfg, out_dir=cfg.components_dir / "cmb")
+tsz.make_tsz_maps(cfg, out_dir=cfg.components_dir / "tsz")
+ksz.make_ksz_map(cfg, out_dir=cfg.components_dir / "ksz")
+cib.make_cib_maps(cfg, out_dir=cfg.components_dir / "cib")
 ```
 
 ## Layout
@@ -80,12 +73,12 @@ cib_uK = cib.make_cib_maps(cfg)
 src/flamingo_mock/
   config.py    paths, constants, cosmology, beams, MockConfig
   spectral.py  tSZ/kSZ responses, Jy/sr <-> uK, CIB greybody SED
-  io.py        HEALPix map I/O
+  io.py        HEALPix map I/O, copy/link helpers
   cmb.py       CAMB spectrum + pixell lensing (optional deps)
   tsz.py       Compton-y -> dT(nu)
   ksz.py       Doppler-b -> dT
   cib.py       released bands + interpolation/SED scaling
-  sky.py       per-frequency coaddition (+ optional beam smoothing)
+  sky.py       optional coadd helper (not used in default workflow)
   powerspectra.py  anafast-based C_ell estimators, binning, decorrelation
   cli.py       flamingo-mock-maps entry point
 ```

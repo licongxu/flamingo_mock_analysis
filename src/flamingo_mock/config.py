@@ -93,15 +93,19 @@ class MockConfig:
         return 3 * self.nside - 1
 
     @property
-    def raw_dir(self) -> Path:
-        """Directory for individual component maps."""
+    def components_dir(self) -> Path:
+        """Directory for individual component maps (no coaddition)."""
         return self.out_dir / "components"
 
     @property
     def coadd_dir(self) -> Path:
-        """Directory for coadded per-frequency skies."""
+        """Reserved for a future coadd/beam step — not used by default."""
         return self.out_dir / "coadd"
 
     def make_dirs(self) -> None:
-        self.raw_dir.mkdir(parents=True, exist_ok=True)
-        self.coadd_dir.mkdir(parents=True, exist_ok=True)
+        self.components_dir.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def raw_dir(self) -> Path:
+        """Alias for ``components_dir`` (per-component storage)."""
+        return self.components_dir

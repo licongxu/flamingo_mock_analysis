@@ -1,11 +1,8 @@
 """Coadd sky components into per-frequency synthetic skies.
 
-Sky model (data_description.md Section 5):
-
-    T_nu = CMB_lensed + dT_tSZ(nu) + dT_kSZ + dT_CIB(nu)   [uK_CMB]
-
-Optionally smoothed with per-frequency Gaussian beams. Instrumental noise is
-deliberately not included; it will be added at analysis time.
+**Not part of the default pipeline.** Component maps are stored separately
+under ``components/``; beam convolution and sky coaddition are deferred
+until explicitly requested via ``--steps coadd``.
 """
 
 from __future__ import annotations
