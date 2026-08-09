@@ -1,0 +1,31 @@
+# pyILC HILC Compton-y on FLAMINGO mock skies + Planck NPIPE noise (split B, mc_00200).
+# ELLMAX=3000, N_side=2048. Channel beams = Planck HFI
+# Gaussians applied by flamingo_mock.ilc.prepare; common ILC beam 5'.
+# ILC weight backend: jax (override with PYILC_BACKEND).
+work_in_healpix: 'yes'
+output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_npipe_splitB/
+output_prefix: flamingo_
+output_suffix: _hilc_y_npipe_splitB
+save_weights: 'yes'
+save_as: fits
+param_dict_file: /scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml
+ELLMAX: 3000
+taper_width: 150
+N_side: 2048
+N_freqs: 3
+bandpass_type: DeltaBandpasses
+freqs_delta_ghz: [100.0, 143.0, 353.0]
+freq_map_files: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitB_100GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitB_143GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitB_353GHz_nside2048_K.fits]
+beam_type: Gaussians
+beam_FWHM_arcmin: [9.66, 7.22, 4.92]
+perform_ILC_at_beam: 5.0
+ILC_preserved_comp: tSZ
+N_deproj: 0
+ILC_deproj_comps: []
+N_maps_xcorr: 0
+print_timing: 'true'
+ilc_backend: jax
+wavelet_type: TopHatHarmonic
+BinSize: 50
