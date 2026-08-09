@@ -49,22 +49,44 @@ def find_default_ymap(paths: ILCPaths | None = None) -> Path | None:
     return None
 
 
+def _masked_cl(m1: np.ndarray, m2: np.ndarray | None, mask: np.ndarray, lmax: int) -> np.ndarray:
+    """Pseudo-C_ℓ with binary mask, mean-subtracted, simple 1/fsky correction."""
+    import healpy as hp
+
+    fsky = float(mask.mean())
+    if fsky <= 0:
+        raise RuntimeError("mask has zero sky fraction")
+    w = mask.astype(np.float64)
+    a = np.asarray(m1, dtype=np.float64)
+    mean_a = float(np.sum(a * w) / np.sum(w))
+    a0 = (a - mean_a) * w
+    if m2 is None:
+        return hp.anafast(a0, lmax=lmax) / fsky
+    b = np.asarray(m2, dtype=np.float64)
+    mean_b = float(np.sum(b * w) / np.sum(w))
+    b0 = (b - mean_b) * w
+    return hp.anafast(a0, b0, lmax=lmax) / fsky
+
+
 def validate_ymap(
     ymap: str | Path | None = None,
     *,
     truth: str | Path | None = None,
     ymap_split: str | Path | None = None,
-    lmax: int = 3000,
+    lmax: int = 4096,
     ilc_beam_fwhm_arcmin: float = ILC_BEAM_FWHM_ARCMIN,
     bl_floor: float = 1e-3,
     figures_dir: str | Path | None = None,
     paths: ILCPaths | None = None,
+    mask: str | Path | np.ndarray | None = None,
+    apply_gal_ps_mask: bool = True,
 ) -> dict:
     """Validate an ILC y-map against truth; return the summary dict.
 
     The summary carries ``ok_amplitude``, ``ok_corr`` and
     ``ok_beam_deconvolution`` flags; figures are written to ``figures_dir``
-    when given.
+    when given. By default the same Planck GAL×PS product used for ILC
+    covariance is applied to pixel stats and pseudo-C_ℓ estimates.
     """
     import healpy as hp
 
@@ -92,9 +114,30 @@ def validate_ymap(
     if hp.npix2nside(truth_map.size) != nside:
         truth_map = hp.ud_grade(truth_map, nside)
 
+    # Load / build the same GAL×PS mask used for ILC covariance estimation.
+    mask_arr: np.ndarray | None = None
+    mask_path_str: str | None = None
+    if mask is not None:
+        if isinstance(mask, (str, Path)):
+            mask_path_str = str(mask)
+            mask_arr = np.asarray(hp.read_map(mask_path_str, field=0, dtype=np.float64))
+        else:
+            mask_arr = np.asarray(mask, dtype=np.float64)
+    elif apply_gal_ps_mask:
+        from .masks import ensure_combined_gal_ps_mask, load_combined_mask
+
+        mask_path_str = str(ensure_combined_gal_ps_mask(paths))
+        mask_arr = load_combined_mask(paths, nside=nside)
+    if mask_arr is not None:
+        if hp.npix2nside(mask_arr.size) != nside:
+            mask_arr = hp.ud_grade(mask_arr, nside)
+        mask_arr = (mask_arr > 0.5).astype(np.float64)
+
     finite = np.isfinite(y) & np.isfinite(truth_map)
-    if finite.sum() < 0.5 * y.size:
-        raise RuntimeError("too few finite pixels")
+    if mask_arr is not None:
+        finite = finite & (mask_arr > 0.5)
+    if finite.sum() < 0.05 * y.size:
+        raise RuntimeError("too few finite unmasked pixels")
 
     lmax = min(int(lmax), 3 * nside - 1)
     fwhm = float(ilc_beam_fwhm_arcmin)
@@ -113,10 +156,17 @@ def validate_ymap(
     corr = float(np.corrcoef(y_f[::step], t_f[::step])[0, 1])
     corr_beamed = float(np.corrcoef(y_f[::step], tb_f[::step])[0, 1])
 
-    # Raw Cl from maps (ILC map carries the common beam)
-    cl_yy_raw = hp.anafast(y, lmax=lmax)
-    cl_tt_raw = hp.anafast(truth_map, lmax=lmax)  # truth is beam-free
-    cl_yt_raw = hp.anafast(y, truth_map, lmax=lmax)
+    # Pseudo-C_ℓ (masked when mask is available; simple 1/fsky).
+    if mask_arr is not None:
+        cl_yy_raw = _masked_cl(y, None, mask_arr, lmax)
+        cl_tt_raw = _masked_cl(truth_map, None, mask_arr, lmax)
+        cl_yt_raw = _masked_cl(y, truth_map, mask_arr, lmax)
+        fsky = float(mask_arr.mean())
+    else:
+        cl_yy_raw = hp.anafast(y, lmax=lmax)
+        cl_tt_raw = hp.anafast(truth_map, lmax=lmax)
+        cl_yt_raw = hp.anafast(y, truth_map, lmax=lmax)
+        fsky = 1.0
 
     # Beam-deconvolved ILC auto / cross: divide by B_l^2 (auto) or B_l (cross with beam-free truth)
     bl = gaussian_beam_bl(fwhm, lmax)
@@ -126,7 +176,10 @@ def validate_ymap(
     good = bl >= bl_floor
     cl_yt_dec[good] = cl_yt_raw[good] / bl[good]
     # truth auto stays raw (beam-free). For shape checks also beam-convolve truth then deconv.
-    cl_tt_beamed = hp.anafast(truth_beamed, lmax=lmax)
+    if mask_arr is not None:
+        cl_tt_beamed = _masked_cl(truth_beamed, None, mask_arr, lmax)
+    else:
+        cl_tt_beamed = hp.anafast(truth_beamed, lmax=lmax)
     cl_tt_beamed_dec = deconvolve_cl_beam(cl_tt_beamed, fwhm, bl_floor=bl_floor)
 
     ell = np.arange(lmax + 1)
@@ -157,7 +210,10 @@ def validate_ymap(
         y1 = np.asarray(hp.read_map(str(ymap_split), dtype=np.float64))
         if hp.npix2nside(y1.size) != nside:
             y1 = hp.ud_grade(y1, nside)
-        cl_x = hp.anafast(y, y1, lmax=lmax)
+        if mask_arr is not None:
+            cl_x = _masked_cl(y, y1, mask_arr, lmax)
+        else:
+            cl_x = hp.anafast(y, y1, lmax=lmax)
         cl_x_dec = deconvolve_cl_beam(cl_x, fwhm, bl_floor=bl_floor)
         with np.errstate(divide="ignore", invalid="ignore"):
             # both maps at common beam → divide by B^2
@@ -190,6 +246,8 @@ def validate_ymap(
         "lmax": int(lmax),
         "ilc_beam_fwhm_arcmin": float(fwhm),
         "beam_deconvolved": True,
+        "mask": mask_path_str,
+        "fsky": _py(fsky),
         "ratio_definition": "transfer = C_ell^{y x truth} / (B_ell * C_ell^{truth}) "
         "(auto Cyy/Ctt is noise-biased and is NOT used for the ratio plot)",
         "frac_finite": float(finite.mean()),

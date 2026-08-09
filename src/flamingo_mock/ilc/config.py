@@ -1,13 +1,15 @@
 """pyILC YAML config generation for FLAMINGO mock ILC runs.
 
-Produces the YAML consumed by :class:`pyilc.input.ILCInfo` for the two
-methods used in McCarthy & Hill (2024):
+Produces the YAML consumed by :class:`pyilc.input.ILCInfo` matching the
+McCarthy & Hill (2024) sample configs (`sample_run_Planck_tsz_nodeproj.yml`,
+`sample_run_Planck_CMB_HILC.yml`) for the six HFI channels available in the
+FLAMINGO synthetic sky:
 
-* ``hilc`` — harmonic ILC (``TopHatHarmonic`` needlets, fast; primary).
-* ``nilc`` — needlet ILC (``GaussianNeedlets``; paper-style, heavier).
+* ``hilc`` — harmonic ILC (``TopHatHarmonic``, BinSize=50).
+* ``nilc`` — needlet ILC (``GaussianNeedlets``, paper GN_FWHM ladder).
 
-The ILC weight-solve backend defaults to JAX (GPU); override with the
-``ilc_backend`` field, the ``--backend`` CLI flag, or ``PYILC_BACKEND``.
+Defaults: ``ELLMAX=4096``, ``perform_ILC_at_beam=10'``, ``N_side=2048``,
+``ilc_backend=jax``, Planck GAL×PS mask on covariance **and** wavelet stages.
 """
 
 from __future__ import annotations
@@ -15,18 +17,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .masks import pyilc_mask_yaml_entry
 from .paths import (
     ILC_BEAM_FWHM_ARCMIN,
+    ILC_ELLMAX,
     ILC_FREQUENCIES_GHZ,
     NPIPE_MC_DEFAULT,
     ILCPaths,
     channel_beams_arcmin,
 )
 
-# Gaussian needlet FWHMs [arcmin] for the NILC (McCarthy & Hill 2024 style).
+# Gaussian needlet FWHMs [arcmin] — identical to sample_run_Planck_tsz_*.yml.
 GN_FWHM_ARCMIN = [600.0, 300.0, 120.0, 60.0, 30.0, 15.0, 10.0, 7.5, 5.0]
 
-# HILC harmonic-bin width.
+# HILC harmonic-bin width (sample_run_Planck_CMB_HILC.yml).
 HILC_BIN_SIZE = 50
 
 METHODS = ("hilc", "nilc")
@@ -50,8 +54,8 @@ class ILCConfig:
     split: str = "A"
     paths: ILCPaths = field(default_factory=ILCPaths)
     freqs: tuple[int, ...] = ILC_FREQUENCIES_GHZ
-    ellmax: int = 3000
-    taper_width: int = 150
+    ellmax: int = ILC_ELLMAX
+    taper_width: int = 200  # paper-scale; must be < ELLMAX and leave headroom
     ilc_beam_fwhm_arcmin: float = ILC_BEAM_FWHM_ARCMIN
     preserved_comp: str = "tSZ"
     ilc_backend: str = "jax"
@@ -72,6 +76,7 @@ class ILCConfig:
     def to_dict(self) -> dict:
         """pyILC YAML keys (mirrors pyilc/input.py parsing)."""
         beams = channel_beams_arcmin(self.freqs)
+        mask_entry = pyilc_mask_yaml_entry(self.paths)
         d: dict = {
             "work_in_healpix": "yes",
             "output_dir": str(self.output_dir) + "/",
@@ -84,6 +89,8 @@ class ILCConfig:
             "taper_width": self.taper_width,
             "N_side": self.paths.nside,
             "N_freqs": len(self.freqs),
+            # Synthetic monochromatic components → delta bandpasses (paper uses
+            # ActualBandpasses on real Planck; mocks have no HFI bandpass files).
             "bandpass_type": "DeltaBandpasses",
             "freqs_delta_ghz": [float(f) for f in self.freqs],
             "freq_map_files": [
@@ -92,12 +99,15 @@ class ILCConfig:
             "beam_type": "Gaussians",
             # Must match the channel beams applied by ilc.prepare.
             "beam_FWHM_arcmin": [beams[f] for f in self.freqs],
-            # Common resolution for the ILC; validation deconvolves this B_ell.
+            # Common resolution for the ILC (paper sample: 10 arcmin).
             "perform_ILC_at_beam": self.ilc_beam_fwhm_arcmin,
             "ILC_preserved_comp": self.preserved_comp,
             "N_deproj": 0,
             "ILC_deproj_comps": [],
             "N_maps_xcorr": 0,
+            # Planck galactic × point-source product for both cov and wavelet stages.
+            "mask_before_covariance_computation": list(mask_entry),
+            "mask_before_wavelet_computation": list(mask_entry),
             "print_timing": "true",
             "ilc_backend": self.ilc_backend,
         }
@@ -107,7 +117,7 @@ class ILCConfig:
         else:
             d["wavelet_type"] = "GaussianNeedlets"
             d["N_scales"] = len(GN_FWHM_ARCMIN) + 1
-            d["GN_FWHM_arcmin"] = GN_FWHM_ARCMIN
+            d["GN_FWHM_arcmin"] = list(GN_FWHM_ARCMIN)
             d["N_SED_params"] = 0
             d["SED_params"] = []
             d["SED_params_vals"] = []
@@ -125,9 +135,13 @@ class ILCConfig:
         header = (
             f"# pyILC {self.method.upper()} Compton-y on FLAMINGO mock skies "
             f"+ Planck NPIPE noise (split {self.split}, mc_{self.mc:05d}).\n"
-            f"# ELLMAX={self.ellmax}, N_side={self.paths.nside}. Channel beams = Planck HFI\n"
-            f"# Gaussians applied by flamingo_mock.ilc.prepare; common ILC beam "
-            f"{self.ilc_beam_fwhm_arcmin:g}'.\n"
+            f"# Settings aligned with McCarthy & Hill (2024) sample YAMLs:\n"
+            f"#   ELLMAX={self.ellmax}, N_side={self.paths.nside}, "
+            f"perform_ILC_at_beam={self.ilc_beam_fwhm_arcmin:g}', "
+            f"N_freqs={len(self.freqs)} HFI.\n"
+            f"# Channel beams = Planck HFI Gaussians from flamingo_mock.ilc.prepare.\n"
+            f"# Mask: GAL×PS product (masks/pr4_nilc/Masks.fits fields 1×2) on "
+            f"covariance + wavelet stages.\n"
             f"# ILC weight backend: {self.ilc_backend} (override with PYILC_BACKEND).\n"
         )
         with open(path, "w") as f:

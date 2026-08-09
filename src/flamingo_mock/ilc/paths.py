@@ -6,7 +6,7 @@ Defaults follow the on-disk layout on this machine (see
 * Synthetic components: ``<synth_root>/components/{cmb,tsz,ksz,cib}``
   (µK_CMB, Nside=4096), produced by the ``flamingo-mock-maps`` package.
 * Planck NPIPE noise: ``<synth_root>/planck_noise/npipe/<freq>GHz/{A,B,full}``
-  (K_CMB for 100–353 GHz, Nside=2048).
+  (K_CMB for 100–353 GHz; MJy/sr for 545/857 → converted to K_CMB on load).
 * ILC working products: ``<synth_root>/ilc``.
 """
 
@@ -17,9 +17,10 @@ from pathlib import Path
 
 from ..config import BEAM_FWHM_ARCMIN, NSIDE_NATIVE, MockConfig
 
-# Frequencies used for the Compton-y ILC (Planck HFI channels with NPIPE
-# noise on disk and K_CMB units).
-ILC_FREQUENCIES_GHZ = (100, 143, 353)
+# All six Planck HFI channels (McCarthy & Hill style tSZ ILC uses HFI; we
+# omit LFI 30/44/70 which are not in the FLAMINGO synthetic sky model).
+# Ordered lowest-res → highest-res (paper convention on beam FWHM).
+ILC_FREQUENCIES_GHZ = (100, 143, 353, 217, 545, 857)
 
 # NPIPE detector-set splits; A and B are processed independently, so their
 # cross-spectrum is noise-decoupled.
@@ -28,9 +29,20 @@ NPIPE_SPLITS = ("A", "B")
 # Default NPIPE Monte-Carlo realisation on disk (mc_00200).
 NPIPE_MC_DEFAULT = 200
 
-# Common resolution at which the ILC is performed (arcmin). Validation
-# deconvolves this beam from the reported spectra.
-ILC_BEAM_FWHM_ARCMIN = 5.0
+# Common ILC beam [arcmin] — McCarthy & Hill (2024) sample YAMLs use 10'.
+# Validation deconvolves this beam from the reported spectra.
+ILC_BEAM_FWHM_ARCMIN = 10.0
+
+# pyILC multipole ceiling matching sample_run_Planck_tsz_*.yml.
+ILC_ELLMAX = 4096
+
+# Planck PR4 NILC mask archive (Masks.fits fields: NILC-MASK, GAL-MASK, PS-MASK).
+# Pipeline uses the product of GAL-MASK × PS-MASK for realistic sky cuts.
+MASK_FITS_REL = Path("masks") / "pr4_nilc" / "Masks.fits"
+MASK_GAL_FIELD = 1  # GAL-MASK
+MASK_PS_FIELD = 2  # PS-MASK
+# Combined product written under ilc/ for pyILC's single-field mask API.
+COMBINED_MASK_NAME = "gal_ps_mask_nside2048.fits"
 
 
 @dataclass
@@ -54,6 +66,18 @@ class ILCPaths:
     @property
     def noise_dir(self) -> Path:
         return self.synth_root / "planck_noise" / "npipe"
+
+    @property
+    def masks_dir(self) -> Path:
+        return self.synth_root / "masks"
+
+    def planck_masks_fits(self) -> Path:
+        """PR4 NILC multi-field mask FITS (NILC / GAL / PS)."""
+        return self.synth_root / MASK_FITS_REL
+
+    def combined_gal_ps_mask(self) -> Path:
+        """Binary GAL×PS product used by pyILC and validation."""
+        return self.ilc_root / COMBINED_MASK_NAME
 
     def cmb_map(self) -> Path:
         return (

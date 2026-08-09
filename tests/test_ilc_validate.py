@@ -18,8 +18,8 @@ def test_validate_existing_ymap_beamdec_if_present(tmp_path):
     figdir = tmp_path / "figures"
     summary = validate_ymap(
         ymap,
-        lmax=3000,
-        ilc_beam_fwhm_arcmin=5.0,
+        lmax=4096,
+        ilc_beam_fwhm_arcmin=10.0,
         figures_dir=figdir,
     )
     body = json.dumps(summary)

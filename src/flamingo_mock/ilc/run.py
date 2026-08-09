@@ -45,6 +45,21 @@ def run_ilc(yaml_config: str | Path, backend: str | None = None) -> Path:
     if getattr(info, "work_in_car", False):
         info.read_geometries()
 
+    # Report mask wiring (GAL×PS product via mask_before_covariance / wavelet).
+    cov_mask = getattr(info, "mask_before_covariance_computation", None)
+    wav_mask = getattr(info, "mask_before_wavelet_computation", None)
+    if cov_mask is not None:
+        import numpy as np
+
+        fsky = float(np.asarray(cov_mask).mean())
+        print(f"[run_ilc] mask_before_covariance fsky={fsky:.4f}")
+    else:
+        print("[run_ilc] WARNING: no mask_before_covariance_computation set")
+    if wav_mask is not None:
+        print("[run_ilc] mask_before_wavelet_computation: set")
+    else:
+        print("[run_ilc] mask_before_wavelet_computation: None")
+
     wv = Wavelets(
         N_scales=info.N_scales,
         ELLMAX=info.ELLMAX,
@@ -64,6 +79,15 @@ def run_ilc(yaml_config: str | Path, backend: str | None = None) -> Path:
 
     if info.wavelet_type == "TopHatHarmonic":
         info.read_maps()
+        # HILC harmonic path ignores mask_before_covariance for C_ell; zero
+        # masked pixels on the maps before map2alm so the cut is applied.
+        if cov_mask is not None:
+            import numpy as np
+
+            m = np.asarray(cov_mask, dtype=np.float64)
+            for i in range(len(info.maps)):
+                info.maps[i] = np.asarray(info.maps[i], dtype=np.float64) * m
+            print("[run_ilc] applied GAL×PS mask to HILC input maps before SHTs")
         # healpix path: pix_size (arcmin) is only set by read_geometries for CAR.
         if not hasattr(info, "pix_size") or info.pix_size is None:
             import healpy as hp
@@ -78,6 +102,7 @@ def run_ilc(yaml_config: str | Path, backend: str | None = None) -> Path:
             info.maps_to_apply_weights2alms()
         harmonic_ILC(wv, info, resp_tol=info.resp_tol, map_images=False)
     else:
+        # NILC: pyILC applies mask_before_wavelet and mask_before_covariance.
         wavelet_ILC(wv, info, resp_tol=info.resp_tol, map_images=False)
 
     ypath = Path(_ILC_map_filename(info))

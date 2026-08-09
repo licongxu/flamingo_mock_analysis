@@ -84,12 +84,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Second-split ILC y-map for the noise-decoupled cross spectrum",
     )
-    val.add_argument("--lmax", type=int, default=3000)
+    val.add_argument("--lmax", type=int, default=4096)
     val.add_argument(
         "--ilc-beam-fwhm-arcmin",
         type=float,
         default=ILC_BEAM_FWHM_ARCMIN,
-        help="Common ILC beam deconvolved from the spectra",
+        help="Common ILC beam deconvolved from the spectra (paper default 10')",
     )
     val.add_argument("--bl-floor", type=float, default=1e-3)
     val.add_argument("--figures-dir", type=Path, default=Path("figures"))
