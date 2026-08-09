@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flamingo-mock"
+version = "0.1.0"
+description = "Synthetic multi-frequency CMB sky maps from FLAMINGO (Yang et al. 2026) integrated lightcone maps"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "healpy",
+    "astropy",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+# Only needed for the lensed primary CMB step
+cmb = ["camb", "pixell"]
+
+[project.scripts]
+flamingo-mock-maps = "flamingo_mock.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
