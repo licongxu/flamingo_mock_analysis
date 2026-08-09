@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from .config import CIB_FILES, MockConfig
-from .io import load_flamingo_map, write_map
+from .io import copy_or_link, load_flamingo_map, write_map
 from .spectral import intensity_to_uK, sed_ratio
 
 
@@ -82,11 +82,30 @@ def approximate_cib_intensity(
     )
 
 
+def copy_released_cib_intensity(
+    cfg: MockConfig, out_dir: Path | None = None, *, use_symlink: bool = True
+) -> dict[int, Path]:
+    """Copy or link released bandpass-convolved CIB intensity maps [Jy/sr]."""
+    out_dir = out_dir or cfg.raw_dir / "cib"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paths = {}
+    for nu in sorted(CIB_FILES):
+        src = cfg.data_dir / CIB_FILES[nu]
+        dst = out_dir / f"CIB_I_{nu}GHz_nside{cfg.nside}.fits"
+        if not dst.exists():
+            print(f"CIB: archiving released {nu} GHz intensity...")
+            copy_or_link(src, dst, use_symlink=use_symlink)
+        else:
+            print(f"CIB: reusing {dst.name}")
+        paths[nu] = dst
+    return paths
+
+
 def make_cib_maps(
     cfg: MockConfig, out_dir: Path | None = None
 ) -> dict[float, np.ndarray]:
     """Build CIB dT maps [uK_CMB] at every frequency in the config."""
-    out_dir = out_dir or cfg.raw_dir
+    out_dir = out_dir or cfg.raw_dir / "cib"
     cib_I = load_cib_intensities(cfg, _needed_bands(cfg.frequencies))
 
     maps: dict[float, np.ndarray] = {}

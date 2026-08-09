@@ -49,18 +49,20 @@ CIB_FILES = {  # CIB specific intensity [Jy/sr], bandpass-convolved
     857: "lensed_CIB_rot_BANDPASS_F857_three_params.fits",
 }
 
-# Default channel set: SO-LAT-like 90/150/217 + Planck-HFI 353/545/857.
-DEFAULT_FREQUENCIES_GHZ = (90.0, 150.0, 217.0, 353.0, 545.0, 857.0)
+# Six Planck HFI channels (reference_tables/planck_info.png, Table I).
+PLANCK_FREQUENCIES_GHZ = (100.0, 143.0, 217.0, 353.0, 545.0, 857.0)
+DEFAULT_FREQUENCIES_GHZ = PLANCK_FREQUENCIES_GHZ
 
-# Per-frequency Gaussian beams [arcmin FWHM] used in the compsep pipeline
-# (data_description.md Section 7). Only applied when smoothing is requested.
+# Planck beam FWHM [arcmin] from Table I (reference_tables/planck_info.png).
+# Applied only when --smooth is requested; products at this stage are
+# beam-unconvolved (native map resolution).
 BEAM_FWHM_ARCMIN = {
-    90: 2.2,
-    150: 1.4,
-    217: 1.0,
-    353: 4.5,
-    545: 4.72,
-    857: 4.42,
+    100: 9.66,
+    143: 7.22,
+    217: 4.90,
+    353: 4.92,
+    545: 4.67,
+    857: 4.22,
 }
 
 

@@ -31,8 +31,8 @@ at a later stage.
 * Input: `/rds/flamingo/L2800N5040/HYDRO_FIDUCIAL/lightcone0_shells`
   (HEALPix Nside=4096 RING FITS; see `data_description.md`).
 * Output: `/rds/rds-lxu/flamingo/integrated_maps_synthetic`
-  (`components/` for per-component maps, `coadd/` for summed skies in both
-  uK_CMB float32 and K_CMB float64).
+  (`components/{cmb,cib,tsz,ksz}/` for per-component maps at Planck
+  frequencies 100/143/217/353/545/857 GHz; beam-unconvolved).
 
 ## Install
 
@@ -44,8 +44,11 @@ pip install -e ".[cmb]"   # + camb, pixell for the lensed CMB step
 ## Usage
 
 ```bash
-# Full pipeline, default channels 90/150/217/353/545/857 GHz, Nside=4096
+# Full pipeline, Planck 6-channel (100–857 GHz), Nside=4096
 flamingo-mock-maps build
+
+# Or use the notebook (archives FLAMINGO maps + builds multifrequency products):
+#   notebooks/build_synthetic_component_maps.ipynb
 
 # Quick low-resolution test (inputs downgraded with ud_grade)
 flamingo-mock-maps build --nside 256 --frequencies 90 217 857

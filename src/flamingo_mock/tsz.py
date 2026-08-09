@@ -7,13 +7,28 @@ from pathlib import Path
 import numpy as np
 
 from .config import TSZ_FILE, MockConfig
-from .io import load_flamingo_map, write_map
+from .io import copy_or_link, load_flamingo_map, write_map
 from .spectral import y_to_delta_T_uK
 
 
 def load_compton_y(cfg: MockConfig) -> np.ndarray:
     """Load the lensed Compton-y map (dimensionless)."""
     return load_flamingo_map(cfg.data_dir / TSZ_FILE, cfg.nside)
+
+
+def archive_compton_y(
+    cfg: MockConfig, out_dir: Path | None = None, *, use_symlink: bool = True
+) -> Path:
+    """Copy or link the lensed Compton-y map from the FLAMINGO release."""
+    out_dir = out_dir or cfg.raw_dir / "tsz" / "tsz"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dst = out_dir / f"compton_y_nside{cfg.nside}.fits"
+    if not dst.exists():
+        print("tSZ: archiving lensed Compton-y map...")
+        copy_or_link(cfg.data_dir / TSZ_FILE, dst, use_symlink=use_symlink)
+    else:
+        print(f"tSZ: reusing {dst.name}")
+    return dst
 
 
 def make_tsz_maps(
@@ -23,7 +38,7 @@ def make_tsz_maps(
 
     Also writes the Compton-y map itself (needed as ILC ground truth).
     """
-    out_dir = out_dir or cfg.raw_dir
+    out_dir = out_dir or cfg.raw_dir / "tsz"
     if y is None:
         print("tSZ: loading lensed Compton-y map...")
         y = load_compton_y(cfg)

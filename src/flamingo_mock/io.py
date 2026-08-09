@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import healpy as hp
@@ -61,3 +62,20 @@ def write_map(
     )
     print(f"  wrote {path} ({path.stat().st_size / 1e9:.2f} GB)")
     return path
+
+
+def copy_or_link(src: Path, dst: Path, *, use_symlink: bool = False) -> Path:
+    """Copy (default) or symlink a map into the synthetic products tree."""
+    src, dst = Path(src), Path(dst)
+    if not src.is_file():
+        raise FileNotFoundError(src)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists() or dst.is_symlink():
+        dst.unlink()
+    if use_symlink:
+        dst.symlink_to(src.resolve())
+        print(f"  linked {dst.name} -> {src}")
+    else:
+        shutil.copy2(src, dst)
+        print(f"  copied {dst.name} ({dst.stat().st_size / 1e9:.2f} GB)")
+    return dst

@@ -86,7 +86,7 @@ def make_lensed_cmb(cfg: MockConfig, out_dir: Path | None = None) -> np.ndarray:
 
     Returns the lensed CMB temperature map in uK_CMB at ``cfg.nside``.
     """
-    out_dir = out_dir or cfg.raw_dir
+    out_dir = out_dir or cfg.raw_dir / "cmb"
     tag = f"nside{cfg.nside}_seed{cfg.seed}"
     out_path = out_dir / f"primary_CMB_T_lensed_{tag}.fits"
     if out_path.is_file():

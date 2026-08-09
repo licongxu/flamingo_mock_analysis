@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from .config import KSZ_FILE, MockConfig
-from .io import load_flamingo_map, write_map
+from .io import copy_or_link, load_flamingo_map, write_map
 from .spectral import b_to_delta_T_uK
 
 
@@ -20,11 +20,26 @@ def load_doppler_b(cfg: MockConfig) -> np.ndarray:
     return load_flamingo_map(cfg.data_dir / KSZ_FILE, cfg.nside)
 
 
+def archive_doppler_b(
+    cfg: MockConfig, out_dir: Path | None = None, *, use_symlink: bool = True
+) -> Path:
+    """Copy or link the lensed Doppler-b map from the FLAMINGO release."""
+    out_dir = out_dir or cfg.raw_dir / "ksz" / "ksz"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dst = out_dir / f"doppler_b_nside{cfg.nside}.fits"
+    if not dst.exists():
+        print("kSZ: archiving lensed Doppler-b map...")
+        copy_or_link(cfg.data_dir / KSZ_FILE, dst, use_symlink=use_symlink)
+    else:
+        print(f"kSZ: reusing {dst.name}")
+    return dst
+
+
 def make_ksz_map(
     cfg: MockConfig, b: np.ndarray | None = None, out_dir: Path | None = None
 ) -> np.ndarray:
     """Build dT_kSZ [uK_CMB] (frequency independent in thermodynamic units)."""
-    out_dir = out_dir or cfg.raw_dir
+    out_dir = out_dir or cfg.raw_dir / "ksz"
     if b is None:
         print("kSZ: loading lensed Doppler-b map...")
         b = load_doppler_b(cfg)
