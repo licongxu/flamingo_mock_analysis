@@ -66,9 +66,7 @@ def load_pr4_gal_ps(masks_fits: Path, nside: int = 2048) -> tuple[np.ndarray, np
         gal = hp.ud_grade(gal, nside)
         ps = hp.ud_grade(ps, nside)
     # Soft GAL edges → binary for SZiFi peak-finding; PS is already binary.
-    gal_bin = (gal > 0.5).astype(np.float64)
-    ps_bin = (ps > 0.5).astype(np.float64)
-    return gal_bin, ps_bin
+    return (gal > 0.5).astype(np.float64), (ps > 0.5).astype(np.float64)
 
 
 def _tile_membership_map(field_id: int, nside_map: int, nside_tile: int = TILE_NSIDE) -> np.ndarray:

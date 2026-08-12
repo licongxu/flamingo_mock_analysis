@@ -12,14 +12,20 @@ dependencies = [
     "healpy",
     "astropy",
     "matplotlib",
+    "pyyaml",
 ]
 
 [project.optional-dependencies]
 # Only needed for the lensed primary CMB step
 cmb = ["camb", "pixell"]
+# Compton-y ILC: pyILC (agent_evolve branch) is installed separately from the
+# local checkout, e.g. pip install -e /scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc
+# GPU backends: jax[cuda13] or cupy-cuda12x.
+ilc = ["jax"]
 
 [project.scripts]
 flamingo-mock-maps = "flamingo_mock.cli:main"
+flamingo-ilc = "flamingo_mock.ilc.cli:main"
 flamingo-szifi = "flamingo_mock.szifi.cli:main"
 
 [tool.setuptools.packages.find]

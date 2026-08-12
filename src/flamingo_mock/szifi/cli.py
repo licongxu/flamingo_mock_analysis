@@ -23,6 +23,8 @@ from pathlib import Path
 from .paths import SZiFiPaths
 from .run import run_imf_and_scimmf, run_mmf_batched
 from .tiles import prepare_tiles, select_footprint_tile_ids, select_pilot_tile_ids
+from .true_snr import extract_true_snr
+from .validate import DEFAULT_TRUTH_CATALOGUE
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -82,6 +84,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Parallel CPU workers (default ~8, capped at half machine)",
     )
 
+    ts = sub.add_parser("true-snr", help="Fixed-mode true SNR for footprint truth halos")
+    ts.add_argument("--truth", type=Path, default=DEFAULT_TRUTH_CATALOGUE)
+    ts.add_argument("--split", choices=("A", "B"), default="A")
+    ts.add_argument("--z-max", type=float, default=1.0)
+    ts.add_argument("--q-ap-min", type=float, default=2.0)
+    ts.add_argument("--n-workers", type=int, default=None)
+    ts.add_argument("--threads-per-worker", type=int, default=None)
+    ts.add_argument("--out", type=Path, default=None)
+
     return p.parse_args(argv)
 
 
@@ -98,6 +109,24 @@ def _field_ids(args: argparse.Namespace, paths: SZiFiPaths) -> list[int]:
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     paths = SZiFiPaths(out_root=args.out_root)
+
+    if args.command == "true-snr":
+        out = args.out or (
+            paths.catalogues_dir()
+            / f"footprint_split{args.split}_truth_qtrue_mmf_qap{args.q_ap_min:g}.npz"
+        )
+        extract_true_snr(
+            paths,
+            truth_csv=args.truth,
+            split=args.split,
+            z_max=args.z_max,
+            q_ap_min=args.q_ap_min,
+            n_workers=args.n_workers,
+            threads_per_worker=args.threads_per_worker,
+            out_path=out,
+        )
+        return
+
     paths.make_dirs(args.split)
     fids = _field_ids(args, paths)
     print(f"tiles: n={len(fids)}  first={fids[:5]} ...")

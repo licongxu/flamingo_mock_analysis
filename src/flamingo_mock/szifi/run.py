@@ -24,27 +24,17 @@ def half_machine_pool_limits(
     *,
     threads_per_worker: int | None = None,
 ) -> tuple[int, int]:
-    """Cap process pool at half the host CPUs (and a modest worker count).
+    """Cap process pool at half the host CPUs.
 
     Returns ``(n_workers, threads_per_worker)`` with
     ``n_workers * threads_per_worker <= nproc // 2``.
-    Defaults are conservative so BLAS/healpy overhead stays under half.
     """
-    nproc = os.cpu_count() or 4
-    half = max(1, nproc // 2)
-    # Leave headroom inside the half-cap for non-OMP threads / the parent.
-    budget = max(1, (half * 3) // 4)  # 75% of half → ~37% of machine
-    # Memory-safe default: each SZiFi worker is heavy (~several GB).
-    default_workers = min(6, max(1, budget // 10))
-    workers = int(n_workers) if n_workers is not None else default_workers
-    workers = max(1, min(workers, budget, 8))
-    if threads_per_worker is None:
-        threads = max(1, budget // workers)
-    else:
-        threads = max(1, int(threads_per_worker))
-    while workers * threads > budget and threads > 1:
+    half = max(1, (os.cpu_count() or 4) // 2)
+    workers = max(1, min(n_workers or 6, half, 8))
+    threads = max(1, threads_per_worker or half // workers)
+    while workers * threads > half and threads > 1:
         threads -= 1
-    while workers * threads > budget and workers > 1:
+    while workers * threads > half and workers > 1:
         workers -= 1
     return workers, threads
 

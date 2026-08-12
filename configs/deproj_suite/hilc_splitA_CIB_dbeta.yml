@@ -1,0 +1,41 @@
+# pyILC HILC Compton-y on FLAMINGO mock skies + Planck NPIPE noise (split A, mc_00200).
+# Settings aligned with McCarthy & Hill (2024) sample YAMLs:
+#   ELLMAX=4096, N_side=2048, perform_ILC_at_beam=10', N_freqs=6 HFI.
+# Channel beams = Planck HFI Gaussians from flamingo_mock.ilc.prepare.
+# Mask: GAL×PS product (masks/pr4_nilc/Masks.fits fields 1×2) on covariance + wavelet stages.
+# Deprojection: N_deproj=2 comps=['CIB', 'CIB_dbeta']
+# ILC weight backend: jax (override with PYILC_BACKEND).
+work_in_healpix: 'yes'
+output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_npipe_splitA_deproj_CIB_CIB_dbeta/
+output_prefix: flamingo_
+output_suffix: _hilc_y_npipe_splitA_deproj_CIB_CIB_dbeta
+save_weights: 'yes'
+save_as: fits
+param_dict_file: /scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml
+ELLMAX: 4096
+taper_width: 200
+N_side: 2048
+N_freqs: 6
+bandpass_type: DeltaBandpasses
+freqs_delta_ghz: [100.0, 143.0, 353.0, 217.0, 545.0, 857.0]
+freq_map_files: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitA_100GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitA_143GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitA_353GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitA_217GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitA_545GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe/sky_CMB_tSZ_kSZ_CIB_npipe_splitA_857GHz_nside2048_K.fits]
+beam_type: Gaussians
+beam_FWHM_arcmin: [9.66, 7.22, 4.92, 4.9, 4.67, 4.22]
+perform_ILC_at_beam: 10.0
+ILC_preserved_comp: tSZ
+N_deproj: 2
+ILC_deproj_comps: [CIB, CIB_dbeta]
+N_maps_xcorr: 0
+mask_before_covariance_computation: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/gal_ps_mask_nside2048.fits,
+  0]
+mask_before_wavelet_computation: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/gal_ps_mask_nside2048.fits,
+  0]
+print_timing: 'true'
+ilc_backend: jax
+wavelet_type: TopHatHarmonic
+BinSize: 50
