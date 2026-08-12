@@ -29,19 +29,26 @@ def half_machine_pool_limits(
     Returns ``(n_workers, threads_per_worker)`` with
     ``n_workers * threads_per_worker <= nproc // 2``.
     Defaults are conservative so BLAS/healpy overhead stays under half.
+    If both ``n_workers`` and ``threads_per_worker`` are set, use up to the
+    full half-machine budget (still never above ``nproc // 2``).
     """
     nproc = os.cpu_count() or 4
     half = max(1, nproc // 2)
-    # Leave headroom inside the half-cap for non-OMP threads / the parent.
-    budget = max(1, (half * 3) // 4)  # 75% of half → ~37% of machine
-    # Memory-safe default: each SZiFi worker is heavy (~several GB).
-    default_workers = min(6, max(1, budget // 10))
-    workers = int(n_workers) if n_workers is not None else default_workers
-    workers = max(1, min(workers, budget, 8))
-    if threads_per_worker is None:
-        threads = max(1, budget // workers)
-    else:
+    if n_workers is not None and threads_per_worker is not None:
+        budget = half
+        workers = max(1, min(int(n_workers), half))
         threads = max(1, int(threads_per_worker))
+    else:
+        # Leave headroom inside the half-cap for non-OMP threads / the parent.
+        budget = max(1, (half * 3) // 4)  # 75% of half → ~37% of machine
+        # Memory-safe default: each SZiFi worker is heavy (~several GB).
+        default_workers = min(6, max(1, budget // 10))
+        workers = int(n_workers) if n_workers is not None else default_workers
+        workers = max(1, min(workers, budget, 8))
+        if threads_per_worker is None:
+            threads = max(1, budget // workers)
+        else:
+            threads = max(1, int(threads_per_worker))
     while workers * threads > budget and threads > 1:
         threads -= 1
     while workers * threads > budget and workers > 1:

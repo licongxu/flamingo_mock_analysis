@@ -3,3 +3,12 @@ maps_100_143_353/
 .claude/
 *.egg-info/
 __pycache__/
+
+# LaTeX build junk
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.fls
+paper/*.fdb_latexmk
+paper/cache/
