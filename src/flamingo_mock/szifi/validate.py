@@ -67,7 +67,7 @@ def unmasked_at_lonlat(
     mask: np.ndarray,
     nside: int,
 ) -> np.ndarray:
-    ipix = hp.ang2pix(nside, lon_deg, lat_deg, lonlat=True, nest=True)
+    ipix = hp.ang2pix(nside, lon_deg, lat_deg, lonlat=True)  # RING (PR4 mask order)
     return mask[ipix] > 0.5
 
 

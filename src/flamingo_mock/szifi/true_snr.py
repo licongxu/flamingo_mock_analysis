@@ -99,8 +99,23 @@ def _make_input_catalogue(
     return cat
 
 
-def _tile_checkpoint_path(paths: SZiFiPaths, field_id: int) -> Path:
-    return Path(paths.catalogues_dir()) / "true_snr_tiles" / f"field_{int(field_id)}.npz"
+def _tile_checkpoint_path(
+    paths: SZiFiPaths,
+    field_id: int,
+    *,
+    split: str,
+    truth_csv: Path | str,
+    z_max: float,
+    q_ap_min: float,
+) -> Path:
+    # Identity must include split + parent-selection inputs (not just field_id).
+    tag = f"split{split}_z{z_max:g}_qap{q_ap_min:g}_{Path(truth_csv).stem}"
+    return (
+        Path(paths.catalogues_dir())
+        / "true_snr_tiles"
+        / tag
+        / f"field_{int(field_id)}.npz"
+    )
 
 
 def _empty_tile_result(
@@ -137,7 +152,14 @@ def _run_fixed_tile(payload: dict) -> dict[str, np.ndarray]:
 
     paths = SZiFiPaths(out_root=payload["out_root"])
     fid = int(payload["field_id"])
-    ckpt = _tile_checkpoint_path(paths, fid)
+    ckpt = _tile_checkpoint_path(
+        paths,
+        fid,
+        split=payload["split"],
+        truth_csv=payload["truth_csv"],
+        z_max=payload["z_max"],
+        q_ap_min=payload["q_ap_min"],
+    )
     if ckpt.is_file():
         data = np.load(ckpt)
         return {k: np.asarray(data[k]) for k in data.files}
@@ -249,6 +271,9 @@ def extract_true_snr(
             {
                 "out_root": str(paths.out_root),
                 "split": split,
+                "truth_csv": str(truth_csv),
+                "z_max": float(z_max),
+                "q_ap_min": float(q_ap_min),
                 "field_id": int(fid),
                 "threads": threads,
                 "lon": parent["lon"][m],
@@ -264,7 +289,18 @@ def extract_true_snr(
     progress_path = Path(paths.catalogues_dir()) / "true_snr_extract_progress.txt"
     tile_dir = Path(paths.catalogues_dir()) / "true_snr_tiles"
     tile_dir.mkdir(parents=True, exist_ok=True)
-    n_cached = sum(1 for pl in payloads if _tile_checkpoint_path(paths, pl["field_id"]).is_file())
+    n_cached = sum(
+        1
+        for pl in payloads
+        if _tile_checkpoint_path(
+            paths,
+            pl["field_id"],
+            split=pl["split"],
+            truth_csv=pl["truth_csv"],
+            z_max=pl["z_max"],
+            q_ap_min=pl["q_ap_min"],
+        ).is_file()
+    )
     print(f"true_snr: resume checkpoints={n_cached}/{len(payloads)} in {tile_dir}")
     # Parent must not hold GPU before forking workers.
     os.environ["CUDA_VISIBLE_DEVICES"] = ""

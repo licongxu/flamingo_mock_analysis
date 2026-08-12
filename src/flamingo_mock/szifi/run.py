@@ -296,6 +296,17 @@ def merge_catalogue_npzs(
     return save_catalogue_npz(cat, out_path, meta=meta_out)
 
 
+def _partial_matches_batch(part: Path, batch: list[int]) -> bool:
+    """True if ``part`` exists and its JSON sidecar lists the same tile IDs."""
+    import json
+
+    meta_path = part.with_suffix(".json")
+    if not (part.is_file() and part.stat().st_size > 100 and meta_path.is_file()):
+        return False
+    meta = json.loads(meta_path.read_text())
+    return list(meta.get("field_ids", [])) == list(batch)
+
+
 def run_mmf_batched(
     paths: SZiFiPaths,
     field_ids: list[int],
@@ -331,7 +342,7 @@ def run_mmf_batched(
         batch = ids[start : start + batch_size]
         part = partial_dir / f"batch_{b:04d}_q{q_th_final:g}.npz"
         partials.append(part)
-        if part.exists() and part.stat().st_size > 100:
+        if _partial_matches_batch(part, batch):
             print(f"[resume] {method} batch {b+1}/{n_batch} exists: {part.name}", flush=True)
             continue
         jobs.append(
