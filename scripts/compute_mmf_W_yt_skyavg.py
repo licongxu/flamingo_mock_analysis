@@ -34,6 +34,7 @@ N_PHI = 180
 N_TILE_WORKERS = 8
 N_PHOT_WORKERS = 16
 X_MAX = 5.0
+POLY_DEG = 3  # flamingo_repo aperture_snr / cnc: polyfit(log theta, ·, 3), no clip
 
 INTER_DIR = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi/catalogues/"
@@ -59,7 +60,7 @@ DX = TILE_L_DEG / TILE_NX / 180.0 * np.pi
 TE = np.linspace(0.0, 5.0, N_R)
 
 _WPayload = None
-_YMAP = _NSIDE = _WGRID = _LOGTH = _TLUT = None
+_YMAP = _NSIDE = _WGRID = _LOGTH = _TLUT = _WCOEFF = _TCOEFF = None
 _EXP = _LRANGE = _BEAM = _PROFILE_TYPE = None
 
 
@@ -220,75 +221,147 @@ def build_w_table(overwrite: bool = False) -> None:
     print("Wrote", OUT_NPZ)
 
 
-def _gnfw_t_profile() -> np.ndarray:
+def _build_t_mmf_lut(theta_vec: np.ndarray) -> np.ndarray:
+    """MMF template y_t(x)/y_unconv(0) — beamed, not divided by t(0)."""
     import szifi
-    from szifi import model
+    from szifi import maps, model
 
     paths = SZiFiPaths()
     params_szifi, params_data, params_model = default_params(paths, [0], split="A")
-    szifi.input_data(params_szifi=params_szifi, params_data=params_data)
+    data = szifi.input_data(params_szifi=params_szifi, params_data=params_data)
+    exp = data.data["experiment"]
+    if params_szifi["a_matrix"] is None:
+        a_matrix = np.zeros((len(exp.tsz_sed), 1))
+        a_matrix[:, 0] = exp.tsz_sed
+        params_szifi["a_matrix"] = a_matrix
     cosmology = model.cosmological_model(params_szifi).cosmology
-    nfw = model.gnfw(
-        model.get_m_500(5.0, 0.2, cosmology), 0.2, cosmology, type=params_model["profile_type"]
-    )
-    y0 = nfw.get_y_norm("centre")
-    th5 = 5.0 / ARCMIN_PER_RAD
-    t = np.empty(TE.size, dtype=np.float64)
-    t[0] = 1.0
-    for i in range(1, TE.size):
-        t[i] = nfw.get_y_at_angle(float(TE[i] * th5)) / y0
-    return t
-
-
-def _build_t_lut(log_th: np.ndarray) -> np.ndarray:
-    """t(x; theta_500) on the same 25-point grid."""
-    import szifi
-    from szifi import model
-
-    paths = SZiFiPaths()
-    params_szifi, params_data, params_model = default_params(paths, [0], split="A")
-    szifi.input_data(params_szifi=params_szifi, params_data=params_data)
-    cosmology = model.cosmological_model(params_szifi).cosmology
+    pix = maps.pixel(TILE_NX, DX)
     z = 0.2
-    t_lut = np.empty((N_THETA, N_R), dtype=np.float64)
-    for i, th in enumerate(np.exp(log_th)):
-        nfw = model.gnfw(
-            model.get_m_500(float(th), z, cosmology), z, cosmology, type=params_model["profile_type"]
+    t_lut = np.empty((theta_vec.size, N_R), dtype=np.float64)
+    for i, th in enumerate(theta_vec):
+        nfw = model.gnfw(model.get_m_500(float(th), z, cosmology), z, cosmology, type=params_model["profile_type"])
+        theta_cart = [(0.5 * pix.nx) * pix.dx, (0.5 * pix.nx) * pix.dx]
+        t_tem = nfw.get_t_map_convolved(
+            pix, exp, beam=params_szifi["beam"], theta_cart=theta_cart, get_nc=False, sed=False,
         )
-        y0 = nfw.get_y_norm("centre")
-        th_rad = float(th) / ARCMIN_PER_RAD
-        t_lut[i, 0] = 1.0
-        for k in range(1, N_R):
-            t_lut[i, k] = nfw.get_y_at_angle(float(TE[k] * th_rad)) / y0
+        t_tem = t_tem / nfw.get_y_norm("centre")
+        tem = maps.filter_tmap(t_tem, pix, params_szifi["lrange"])
+        t_lut[i] = polar_ring(np.asarray(tem[:, :, 0], dtype=np.float64), TE * float(th))
+        print(f"  t_mmf θ={th:.3g}'  t(0)={t_lut[i, 0]:.4f}", flush=True)
     return t_lut
 
 
+def load_w_tables() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    wdata = np.load(OUT_NPZ)
+    w_sky = np.asarray(wdata["w_skyavg"], dtype=np.float64)
+    th_tab = np.asarray(wdata["theta_500_arcmin"], dtype=np.float64)
+    log_th = np.log(th_tab)
+    t_lut = None
+    if "t_mmf" in wdata.files:
+        t_lut = np.asarray(wdata["t_mmf"], dtype=np.float64)
+        if float(np.max(np.abs(t_lut[:, 0]))) > 10.0:
+            t_lut = None
+    if t_lut is None:
+        print("building t_mmf lut (beamed y_t / y_centre, not peak-normalized)...", flush=True)
+        t_lut = _build_t_mmf_lut(th_tab)
+        out = {k: wdata[k] for k in wdata.files}
+        out["t_mmf"] = t_lut
+        tmp = OUT_NPZ.with_suffix(".tmp.npz")
+        np.savez_compressed(tmp, **out)
+        tmp.replace(OUT_NPZ)
+        print("patched t_mmf into", OUT_NPZ, flush=True)
+    return w_sky, th_tab, log_th, t_lut
+
+
+def _w_abs_row(w_shape: np.ndarray, t_mmf: np.ndarray, theta500_arcmin: float) -> np.ndarray:
+    """Absolute MMF W(x): ∫ t_mmf W dΩ = 1. Table stores w = W/W(0)."""
+    th_rad = float(theta500_arcmin) / ARCMIN_PER_RAD
+    iw = 2.0 * np.pi * th_rad**2 * np.trapezoid(TE * t_mmf * w_shape, TE)
+    if iw <= 0.0:
+        return w_shape
+    return w_shape / iw
+
+
+def _interp_logtheta(x: np.ndarray, log_th: np.ndarray, table: np.ndarray) -> np.ndarray:
+    """Linear in log theta, including extrapolation (no clip)."""
+    i = np.searchsorted(log_th, x) - 1
+    i = np.clip(i, 0, log_th.size - 2)
+    t = (x - log_th[i]) / (log_th[i + 1] - log_th[i])
+    n = np.arange(x.size)
+    return (1.0 - t) * table[n, i] + t * table[n, i + 1]
+
+
+def photometry_y0_harmonic(
+    theta_rad: np.ndarray,
+    phi_rad: np.ndarray,
+    theta500_arcmin: np.ndarray,
+    *,
+    lmax: int | None = None,
+) -> np.ndarray:
+    """ŷ0 = (W * y) via spherical-harmonic convolution. No healpix disc sum."""
+    import healpy as hp
+
+    w_sky, th_tab, log_th, t_lut = load_w_tables()
+    ymap = np.asarray(hp.read_map(str(YMAP), dtype=np.float64), dtype=np.float64)
+    nside = hp.npix2nside(ymap.size)
+    nside_out = min(nside, 2048)
+    if nside_out != nside:
+        print(f"ud_grade {nside} → {nside_out} for harmonic ŷ0", flush=True)
+        ymap = hp.ud_grade(ymap, nside_out)
+        nside = nside_out
+    if lmax is None:
+        lmax = 3 * nside - 1
+    print(f"map2alm nside={nside} lmax={lmax}", flush=True)
+    alm = hp.map2alm(ymap, lmax=lmax, iter=1)
+    print(f"alm done, {alm.size:,} modes", flush=True)
+    pix = hp.ang2pix(nside, theta_rad, phi_rad)
+    y0_tab = np.empty((theta_rad.size, th_tab.size), dtype=np.float64)
+    for j, th in enumerate(th_tab):
+        w_abs = _w_abs_row(w_sky[j], t_lut[j], float(th))
+        ang = TE * float(th) / ARCMIN_PER_RAD
+        bl = hp.beam2bl(w_abs, ang, lmax)
+        m = hp.alm2map(hp.almxfl(alm, bl), nside, lmax=lmax)
+        y0_tab[:, j] = m[pix]
+        print(f"  harmonic θ={th:.3g}'  median ŷ0={np.median(y0_tab[:, j]):.4g}", flush=True)
+    return _interp_logtheta(np.log(theta500_arcmin), log_th, y0_tab)
+
+
 def _init_phot(ymap, nside, wsky, logth, t_lut):
-    global _YMAP, _NSIDE, _WGRID, _LOGTH, _TLUT
+    global _YMAP, _NSIDE, _WGRID, _LOGTH, _TLUT, _WCOEFF, _TCOEFF
     _YMAP, _NSIDE, _WGRID, _LOGTH, _TLUT = ymap, nside, wsky, logth, t_lut
+    _WCOEFF = np.polyfit(logth, wsky, POLY_DEG)
+    _TCOEFF = np.polyfit(logth, t_lut, POLY_DEG)
 
 
-def _interp_row(table: np.ndarray, theta500_arcmin: float) -> np.ndarray:
-    x = np.log(theta500_arcmin)
-    return np.array([np.interp(x, _LOGTH, table[:, j]) for j in range(N_R)])
+def _poly_profile(coeff: np.ndarray, theta500_arcmin: float) -> np.ndarray:
+    """flamingo_repo: evaluate poly(log theta) with no clip."""
+    x = np.log(float(theta500_arcmin))
+    powers = x ** np.arange(coeff.shape[0] - 1, -1, -1)
+    return powers @ coeff
 
 
 def _y0_hat(th_rad: float, ph_rad: float, theta500_arcmin: float) -> float:
+    """ŷ0 = Ω Σ y W, W = w / (Ω Σ t_beam w), t_beam = MMF template."""
     import healpy as hp
 
-    w_shape = _interp_row(_WGRID, theta500_arcmin)
-    t_prof = _interp_row(_TLUT, theta500_arcmin)
-    th_c_rad = theta500_arcmin / ARCMIN_PER_RAD
-    iw = 2.0 * np.pi * th_c_rad**2 * np.trapezoid(TE * t_prof * w_shape, TE)
-    w = w_shape / max(iw, 1e-30)
-    r_max = (X_MAX * theta500_arcmin) / ARCMIN_PER_RAD
+    th500 = float(theta500_arcmin)
+    w_shape = _poly_profile(_WCOEFF, th500)
+    t_prof = _poly_profile(_TCOEFF, th500)
+    r_max = (X_MAX * th500) / ARCMIN_PER_RAD
     vec = hp.ang2vec(th_rad, ph_rad)
     pix = hp.query_disc(_NSIDE, vec, r_max)
     if pix.size == 0:
         return 0.0
-    x = hp.rotator.angdist(vec, hp.pix2vec(_NSIDE, pix)) * ARCMIN_PER_RAD / theta500_arcmin
-    wf = np.interp(x, TE, w, left=w[0], right=0.0)
-    return float(hp.nside2pixarea(_NSIDE) * np.dot(_YMAP[pix].astype(np.float64, copy=False), wf))
+    x = hp.rotator.angdist(vec, hp.pix2vec(_NSIDE, pix)) * ARCMIN_PER_RAD / th500
+    om = hp.nside2pixarea(_NSIDE)
+    ws = np.interp(x, TE, w_shape, left=w_shape[0], right=0.0)
+    ts = np.interp(x, TE, t_prof, left=t_prof[0], right=0.0)
+    norm = om * np.sum(ts * ws)
+    if norm <= 0.0:
+        return 0.0
+    return float(om * np.dot(_YMAP[pix].astype(np.float64, copy=False), ws / norm))
+
+
 
 
 def _chunk(payload):
@@ -301,18 +374,12 @@ def _chunk(payload):
 
 def count_q_gt5() -> None:
     import sys
-    import healpy as hp
     import pandas as pd
 
     sys.path.insert(0, "/scratch/scratch-lxu/flamingo_repo/src")
     from flamingo.catalogue import theta_500 as theta_500_fn
 
-    wdata = np.load(OUT_NPZ)
-    w_sky = np.asarray(wdata["w_skyavg"], dtype=np.float64)
-    th_tab = np.asarray(wdata["theta_500_arcmin"], dtype=np.float64)
-    log_th = np.log(th_tab)
-    t_lut = _build_t_lut(log_th)
-
+    _, th_tab, _, _ = load_w_tables()
     frame = pd.read_csv(
         CAT, comment="#", usecols=["theta_rot_rad", "phi_rot_rad", "R_500c_Mpc", "z"]
     )
@@ -324,31 +391,20 @@ def count_q_gt5() -> None:
     th = frame["theta_rot_rad"].to_numpy(np.float64)
     ph = frame["phi_rot_rad"].to_numpy(np.float64)
     print(f"N={n:,}  theta_500 [{th500.min():.3g}, {th500.max():.3g}]'", flush=True)
-
-    ymap = np.asarray(hp.read_map(str(YMAP), dtype=np.float32), dtype=np.float32)
-    nside = hp.npix2nside(ymap.size)
-    chunk = max(1, n // (N_PHOT_WORKERS * 16))
-    slices = [(th[i : i + chunk], ph[i : i + chunk], th500[i : i + chunk]) for i in range(0, n, chunk)]
-    y_ap = np.empty(n, dtype=np.float64)
-    done = 0
-    with get_context("fork").Pool(
-        N_PHOT_WORKERS, initializer=_init_phot, initargs=(ymap, nside, w_sky, log_th, t_lut)
-    ) as pool:
-        for part in pool.imap(_chunk, slices, chunksize=1):
-            y_ap[done : done + part.size] = part
-            done += part.size
-            if done % 200000 < chunk or done == n:
-                print(f"  {done:,}/{n:,}", flush=True)
-
+    y_ap = photometry_y0_harmonic(th, ph, th500)
     noise = np.load(NOISE)
-    coeff = np.polyfit(np.log(noise["theta_500_arcmin"]), np.log(noise["sigma_y0_flamingo_mock"]), 3)
+    coeff = np.polyfit(
+        np.log(noise["theta_500_arcmin"]),
+        np.log(noise["sigma_y0_flamingo_mock"]),
+        POLY_DEG,
+    )
     sigma_y0 = np.exp(np.polyval(coeff, np.log(th500)))
     q = y_ap / sigma_y0
     ok = np.isfinite(q)
     n_out = int(np.sum((th500 < th_tab[0]) | (th500 > th_tab[-1])))
-    print(f"theta_500 outside [{th_tab[0]:g},{th_tab[-1]:g}]' (linear extrap): {n_out:,}")
+    print(f"theta_500 outside [{th_tab[0]:g},{th_tab[-1]:g}]' (poly deg {POLY_DEG} in log theta, no clip): {n_out:,}")
     print(f"N(q>5)={int(np.sum(ok & (q > 5))):,}")
-    print(f"median Y_ap={np.median(y_ap[ok]):.4g}  median q={np.median(q[ok]):.4g}")
+    print(f"median ŷ0={np.median(y_ap[ok]):.4g}  median q={np.median(q[ok]):.4g}")
 
 
 def main() -> None:
