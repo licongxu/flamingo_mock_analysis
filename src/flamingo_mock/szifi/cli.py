@@ -8,7 +8,7 @@ Prepare Planck-footprint tiles (GAL×PS, split A)::
 
 Run footprint catalogues with CPU parallelism (≤ half machine)::
 
-    flamingo-szifi run --footprint --split A --method both --n-workers 8
+    flamingo-szifi run --footprint --split A --method immf --n-workers 8
 
 Pilot (few high-|b| tiles)::
 
@@ -20,25 +20,47 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .paths import SZiFiPaths
+from .paths import (
+    DEFAULT_OUT_ROOT_HOMOG,
+    DEFAULT_TOTAL_MAPS_HOMOG,
+    SZiFiPaths,
+)
 from .run import run_imf_and_scimmf, run_mmf_batched
 from .tiles import prepare_tiles, select_footprint_tile_ids, select_pilot_tile_ids
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
+        "--out-root",
+        type=Path,
+        default=None,
+        help="Output root (default: .../szifi or .../szifi_homog)",
+    )
+    common.add_argument(
+        "--kind",
+        choices=("npipe", "homog"),
+        default="npipe",
+        help="Total-map set: NPIPE ILC coadds or homogeneous-noise CMB+tSZ+CIB",
+    )
+    common.add_argument(
+        "--total-maps-dir",
+        type=Path,
+        default=None,
+        help="Directory of full-sky total maps",
+    )
+
     p = argparse.ArgumentParser(
         prog="flamingo-szifi",
         description="SZiFi iMMF/sciMMF cluster finding on FLAMINGO mock Planck skies",
     )
-    p.add_argument(
-        "--out-root",
-        type=Path,
-        default=SZiFiPaths().out_root,
-        help="Output root under /rds/.../szifi",
-    )
     sub = p.add_subparsers(dest="command", required=True)
 
-    prep = sub.add_parser("prepare", help="Cut tiles + project PR4 masks")
+    prep = sub.add_parser(
+        "prepare",
+        parents=[common],
+        help="Cut tiles + project PR4 masks",
+    )
     prep.add_argument("--split", choices=("A", "B"), default="A")
     prep.add_argument("--pilot", action="store_true", help="Only ~4 high-|b| tiles")
     prep.add_argument(
@@ -58,7 +80,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Parallel CPU workers for cutouts (default ~8, ≤ half machine)",
     )
 
-    run = sub.add_parser("run", help="Run iMMF / sciMMF; write q>5 catalogues")
+    run = sub.add_parser(
+        "run",
+        parents=[common],
+        help="Run iMMF / sciMMF; write q>5 catalogues",
+    )
     run.add_argument("--split", choices=("A", "B"), default="A")
     run.add_argument("--pilot", action="store_true")
     run.add_argument("--footprint", action="store_true")
@@ -81,6 +107,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Parallel CPU workers (default ~8, capped at half machine)",
     )
+    run.add_argument(
+        "--threads-per-worker",
+        type=int,
+        default=None,
+        help="OMP/BLAS threads per worker (with --n-workers, uses half-machine budget)",
+    )
+    run.add_argument(
+        "--backend",
+        choices=("jax", "numpy"),
+        default="jax",
+        help="SZiFi array backend in workers (jax runs on CPU to allow many processes)",
+    )
 
     return p.parse_args(argv)
 
@@ -97,10 +135,25 @@ def _field_ids(args: argparse.Namespace, paths: SZiFiPaths) -> list[int]:
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    paths = SZiFiPaths(out_root=args.out_root)
+    kind = args.kind
+    out_root = args.out_root
+    if out_root is None:
+        out_root = DEFAULT_OUT_ROOT_HOMOG if kind == "homog" else SZiFiPaths().out_root
+    total_maps_dir = args.total_maps_dir
+    if total_maps_dir is None:
+        total_maps_dir = (
+            DEFAULT_TOTAL_MAPS_HOMOG if kind == "homog" else SZiFiPaths().total_maps_dir
+        )
+    paths = SZiFiPaths(
+        out_root=out_root,
+        total_maps_dir=total_maps_dir,
+        kind=kind,
+    )
     paths.make_dirs(args.split)
     fids = _field_ids(args, paths)
-    print(f"tiles: n={len(fids)}  first={fids[:5]} ...")
+    print(f"kind={kind}  tiles: n={len(fids)}  first={fids[:5]} ...")
+    print(f"out_root={paths.out_root}")
+    print(f"total_maps={paths.total_maps_dir}")
 
     if args.command == "prepare":
         print(f"prepare split={args.split}")
@@ -135,6 +188,8 @@ def main(argv: list[str] | None = None) -> None:
                     out_dir=out_dir,
                     tag=tag,
                     n_workers=args.n_workers,
+                    threads_per_worker=getattr(args, "threads_per_worker", None),
+                    array_backend=getattr(args, "backend", "jax"),
                 )
             print("wrote", written)
             return

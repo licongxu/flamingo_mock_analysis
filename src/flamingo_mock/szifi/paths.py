@@ -29,6 +29,12 @@ DEFAULT_MASKS = Path(
 DEFAULT_TOTAL_MAPS = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe"
 )
+DEFAULT_TOTAL_MAPS_HOMOG = Path(
+    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/planck_noise/total_maps"
+)
+DEFAULT_OUT_ROOT_HOMOG = Path(
+    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog"
+)
 
 
 def beam_fwhm_vec_arcmin(freqs: tuple[int, ...] = FREQS_GHZ) -> list[float]:
@@ -46,6 +52,8 @@ class SZiFiPaths:
     masks_fits: Path = DEFAULT_MASKS
     total_maps_dir: Path = DEFAULT_TOTAL_MAPS
     nside: int = 2048
+    # "npipe": K_CMB ILC coadds; "homog": µK_CMB CMB+tSZ+CIB+white noise.
+    kind: str = "npipe"
 
     def __post_init__(self) -> None:
         self.out_root = Path(self.out_root)
@@ -53,6 +61,14 @@ class SZiFiPaths:
         self.noise_dir = Path(self.noise_dir)
         self.masks_fits = Path(self.masks_fits)
         self.total_maps_dir = Path(self.total_maps_dir)
+        self.kind = str(self.kind)
+        if self.kind not in ("npipe", "homog"):
+            raise ValueError(f"kind must be npipe or homog, got {self.kind!r}")
+
+    @property
+    def maps_in_uK(self) -> bool:
+        """True if on-disk total maps are already µK_CMB (no ×1e6)."""
+        return self.kind == "homog"
 
     def tiles_dir(self, split: str) -> Path:
         return self.out_root / "tiles" / f"split{split}"
@@ -76,7 +92,12 @@ class SZiFiPaths:
             d.mkdir(parents=True, exist_ok=True)
 
     def total_map_path(self, split: str, freq_ghz: int) -> Path:
-        """Path to a multi-frequency total sky map [K_CMB]."""
+        """Path to a multi-frequency total sky map."""
+        if self.kind == "homog":
+            return (
+                self.total_maps_dir
+                / f"sky_CMB_tSZ_CIB_homog_{freq_ghz}GHz_nside{self.nside}_uK.fits"
+            )
         return (
             self.total_maps_dir
             / f"sky_CMB_tSZ_kSZ_CIB_npipe_split{split}_{freq_ghz}GHz_nside{self.nside}_K.fits"

@@ -44,7 +44,8 @@ def half_machine_pool_limits(
         # Memory-safe default: each SZiFi worker is heavy (~several GB).
         default_workers = min(6, max(1, budget // 10))
         workers = int(n_workers) if n_workers is not None else default_workers
-        workers = max(1, min(workers, budget, 8))
+        cap = half if n_workers is not None else min(budget, 8)
+        workers = max(1, min(workers, cap))
         if threads_per_worker is None:
             threads = max(1, budget // workers)
         else:
@@ -66,8 +67,6 @@ def _init_worker_threads(threads: int) -> None:
         "VECLIB_MAXIMUM_THREADS",
     ):
         os.environ[key] = str(threads)
-    # Prefer CPU backend in workers to avoid multi-process GPU contention.
-    os.environ.setdefault("SZIFI_ARRAY_BACKEND", "numpy")
     os.environ.setdefault("MPLBACKEND", "Agg")
 
 
@@ -324,11 +323,13 @@ def run_mmf_batched(
     out_dir: Path | None = None,
     tag: str = "footprint",
     n_workers: int | None = None,
+    threads_per_worker: int | None = None,
+    array_backend: str = "jax",
 ) -> Path:
     """Run one MMF method in tile batches (resume-friendly); return merged catalogue.
 
-    Parallelism uses a process pool on **CPU** (``SZIFI_ARRAY_BACKEND=numpy`` in
-    workers) and is capped at half the host CPUs so the machine stays usable.
+    Process-pool workers are capped at half the host CPUs. ``array_backend='jax'``
+    uses JAX on CPU so many workers do not contend for the two GPUs.
     """
     out_dir = Path(out_dir) if out_dir is not None else paths.catalogues_dir()
     partial_dir = out_dir / f"partial_{tag}_split{split}_{method}"
@@ -366,15 +367,20 @@ def run_mmf_batched(
             )
         )
 
-    workers, threads = half_machine_pool_limits(n_workers)
+    workers, threads = half_machine_pool_limits(
+        n_workers, threads_per_worker=threads_per_worker
+    )
+    backend = str(array_backend).lower()
     print(
         f"{method}: {len(jobs)} batches to run, {n_batch - len(jobs)} resumed; "
-        f"workers={workers}, threads/worker={threads}",
+        f"workers={workers}, threads/worker={threads}, backend={backend}",
         flush=True,
     )
     if jobs:
-        # CPU backend in workers avoids multi-process GPU contention.
-        os.environ["SZIFI_ARRAY_BACKEND"] = "numpy"
+        os.environ["SZIFI_ARRAY_BACKEND"] = backend
+        if backend == "jax":
+            os.environ["JAX_PLATFORMS"] = "cpu"
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
         ctx = get_context("fork")
         with ProcessPoolExecutor(
             max_workers=workers,
@@ -404,7 +410,7 @@ def run_mmf_batched(
             "threads_per_worker": threads,
             "q_th_final": q_th_final,
             "tag": tag,
-            "array_backend": "numpy",
+            "array_backend": backend,
         },
     )
     print(f"merged {method} → {out}", flush=True)
@@ -425,7 +431,9 @@ def _run_one_batch_job(args: tuple) -> tuple[str, int, int, int]:
         n_batch,
         method,
     ) = args
-    os.environ["SZIFI_ARRAY_BACKEND"] = "numpy"
+    os.environ.setdefault(
+        "SZIFI_ARRAY_BACKEND", os.environ.get("SZIFI_ARRAY_BACKEND", "jax")
+    )
     os.environ.setdefault("MPLBACKEND", "Agg")
     paths = SZiFiPaths(out_root=out_root)
     print(

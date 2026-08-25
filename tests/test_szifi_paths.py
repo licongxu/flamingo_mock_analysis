@@ -13,3 +13,11 @@ def test_total_map_path_naming():
     p = SZiFiPaths()
     path = p.total_map_path("A", 143)
     assert path.name == "sky_CMB_tSZ_kSZ_CIB_npipe_splitA_143GHz_nside2048_K.fits"
+    assert p.maps_in_uK is False
+
+
+def test_homog_total_map_path():
+    p = SZiFiPaths(kind="homog")
+    path = p.total_map_path("A", 143)
+    assert path.name == "sky_CMB_tSZ_CIB_homog_143GHz_nside2048_uK.fits"
+    assert p.maps_in_uK is True

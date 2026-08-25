@@ -16,7 +16,10 @@ def load_total_map_uK(
     split: str,
     freq_ghz: int,
 ) -> np.ndarray:
-    """Load one total sky map and convert K_CMB → µK_CMB."""
+    """Load one total sky map in µK_CMB.
+
+    NPIPE ILC coadds are K_CMB (×1e6). Homogeneous totals are already µK_CMB.
+    """
     import healpy as hp
 
     path = paths.total_map_path(split, freq_ghz)
@@ -26,6 +29,8 @@ def load_total_map_uK(
             f"SZiFiPaths.total_maps_dir at existing products."
         )
     m = np.asarray(hp.read_map(str(path), field=0, dtype=np.float64))
+    if paths.maps_in_uK:
+        return m
     return m * UK_PER_K
 
 
