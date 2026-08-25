@@ -30,7 +30,7 @@ DEFAULT_TOTAL_MAPS = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_npipe"
 )
 DEFAULT_TOTAL_MAPS_HOMOG = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/planck_noise/total_maps"
+    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/total_maps/test"
 )
 DEFAULT_OUT_ROOT_HOMOG = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog"
