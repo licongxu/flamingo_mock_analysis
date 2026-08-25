@@ -10,6 +10,10 @@ Run footprint catalogues with CPU parallelism (≤ half machine)::
 
     flamingo-szifi run --footprint --split A --method immf --n-workers 8
 
+Full-sky unmasked (all 768 tiles, GAL=PS=1)::
+
+    flamingo-szifi run --kind homog --full-sky --method immf --n-workers 6
+
 Pilot (few high-|b| tiles)::
 
     flamingo-szifi run --pilot --split A
@@ -26,7 +30,12 @@ from .paths import (
     SZiFiPaths,
 )
 from .run import run_imf_and_scimmf, run_mmf_batched
-from .tiles import prepare_tiles, select_footprint_tile_ids, select_pilot_tile_ids
+from .tiles import (
+    prepare_tiles,
+    select_all_tile_ids,
+    select_footprint_tile_ids,
+    select_pilot_tile_ids,
+)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -68,6 +77,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="All nside=8 tiles with GAL×PS fraction >= min-ftile",
     )
+    prep.add_argument(
+        "--full-sky",
+        action="store_true",
+        help="All 768 nside=8 tiles; GAL and PS masks set to 1 (no footprint cut)",
+    )
     prep.add_argument("--n-pilot", type=int, default=4)
     prep.add_argument("--b-min", type=float, default=40.0)
     prep.add_argument("--min-ftile", type=float, default=0.3)
@@ -88,12 +102,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     run.add_argument("--split", choices=("A", "B"), default="A")
     run.add_argument("--pilot", action="store_true")
     run.add_argument("--footprint", action="store_true")
+    run.add_argument(
+        "--full-sky",
+        action="store_true",
+        help="All 768 nside=8 tiles; GAL and PS masks set to 1 (no footprint cut)",
+    )
     run.add_argument("--n-pilot", type=int, default=4)
     run.add_argument("--b-min", type=float, default=40.0)
     run.add_argument("--min-ftile", type=float, default=0.3)
     run.add_argument("--field-ids", type=int, nargs="+", default=None)
     run.add_argument("--q-th", type=float, default=5.0)
-    run.add_argument("--tag", default=None, help="Output name tag (default pilot|footprint)")
+    run.add_argument("--tag", default=None, help="Output name tag (default pilot|footprint|fullsky)")
     run.add_argument(
         "--method",
         choices=("immf", "scimmf", "both"),
@@ -126,11 +145,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def _field_ids(args: argparse.Namespace, paths: SZiFiPaths) -> list[int]:
     if args.field_ids is not None:
         return list(args.field_ids)
+    if getattr(args, "full_sky", False):
+        return select_all_tile_ids()
     if getattr(args, "footprint", False):
         return select_footprint_tile_ids(paths.masks_fits, min_ftile=args.min_ftile)
     if getattr(args, "pilot", False):
         return select_pilot_tile_ids(n=args.n_pilot, b_min_deg=args.b_min)
-    raise SystemExit("Provide --footprint, --pilot, or --field-ids")
+    raise SystemExit("Provide --full-sky, --footprint, --pilot, or --field-ids")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -163,19 +184,30 @@ def main(argv: list[str] | None = None) -> None:
             split=args.split,
             overwrite=args.overwrite,
             n_workers=args.n_workers,
+            unmasked=bool(getattr(args, "full_sky", False)),
         )
         print("prepare done")
         return
 
     if args.command == "run":
         prepare_tiles(
-            paths, fids, split=args.split, overwrite=False, n_workers=args.n_workers
+            paths,
+            fids,
+            split=args.split,
+            overwrite=False,
+            n_workers=args.n_workers,
+            unmasked=bool(getattr(args, "full_sky", False)),
         )
-        tag = args.tag or ("pilot" if args.pilot else "footprint")
+        if args.pilot:
+            tag = args.tag or "pilot"
+        elif getattr(args, "full_sky", False):
+            tag = args.tag or "fullsky"
+        else:
+            tag = args.tag or "footprint"
         out_dir = paths.pilot_dir() if args.pilot else paths.catalogues_dir()
         methods = ("immf", "scimmf") if args.method == "both" else (args.method,)
 
-        if args.footprint or len(fids) > 16:
+        if args.footprint or getattr(args, "full_sky", False) or len(fids) > 16:
             written = {}
             for m in methods:
                 written[m] = run_mmf_batched(

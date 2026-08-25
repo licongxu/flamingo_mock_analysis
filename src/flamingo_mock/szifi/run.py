@@ -57,17 +57,38 @@ def half_machine_pool_limits(
     return workers, threads
 
 
-def _init_worker_threads(threads: int) -> None:
-    """Limit BLAS/OpenMP threads inside each pool worker."""
+def _limit_compute_threads(threads: int) -> None:
+    """Cap BLAS/OpenMP/XLA threads. Must run before JAX is imported in a process."""
+    threads = max(1, int(threads))
     for key in (
         "OMP_NUM_THREADS",
         "OPENBLAS_NUM_THREADS",
         "MKL_NUM_THREADS",
         "NUMEXPR_NUM_THREADS",
         "VECLIB_MAXIMUM_THREADS",
+        "TF_NUM_INTRAOP_THREADS",
+        "TF_NUM_INTEROP_THREADS",
+        "NPROC",
+        "NUMBA_NUM_THREADS",
     ):
         os.environ[key] = str(threads)
+    os.environ["JAX_NUM_CPU_DEVICES"] = "1"
+    flags = os.environ.get("XLA_FLAGS", "")
+    extra = "--xla_cpu_multi_thread_eigen=false"
+    if extra not in flags:
+        os.environ["XLA_FLAGS"] = (flags + " " + extra).strip()
     os.environ.setdefault("MPLBACKEND", "Agg")
+    try:
+        import jax
+
+        jax.config.update("jax_num_cpu_devices", 1)
+    except Exception:
+        pass
+
+
+def _init_worker_threads(threads: int) -> None:
+    """Process-pool initializer: pin compute libraries to ``threads`` cores."""
+    _limit_compute_threads(threads)
 
 
 def default_params(
@@ -377,11 +398,14 @@ def run_mmf_batched(
         flush=True,
     )
     if jobs:
+        _limit_compute_threads(threads)
         os.environ["SZIFI_ARRAY_BACKEND"] = backend
         if backend == "jax":
             os.environ["JAX_PLATFORMS"] = "cpu"
             os.environ["CUDA_VISIBLE_DEVICES"] = ""
-        ctx = get_context("fork")
+        # spawn so workers re-import JAX with the thread caps above (fork
+        # inherits an already-initialized 192-thread XLA pool from the parent).
+        ctx = get_context("spawn")
         with ProcessPoolExecutor(
             max_workers=workers,
             mp_context=ctx,
