@@ -19,14 +19,16 @@ from pathlib import Path
 
 import numpy as np
 
-from .config import CIB_FILES, MockConfig
+from .config import MockConfig
 from .io import copy_or_link, load_flamingo_map, write_map
 from .spectral import intensity_to_uK, sed_ratio
 
 
-def _needed_bands(frequencies: tuple[float, ...]) -> set[int]:
+def _needed_bands(
+    frequencies: tuple[float, ...], released_bands: dict | None = None
+) -> set[int]:
     """Released bands that must be loaded to serve the requested frequencies."""
-    released = sorted(CIB_FILES)
+    released = sorted(released_bands if released_bands is not None else (217, 353, 545, 857))
     needed: set[int] = set()
     for nu in frequencies:
         match = min(released, key=lambda b: abs(b - nu))
@@ -44,11 +46,11 @@ def load_cib_intensities(
     cfg: MockConfig, bands: set[int] | None = None
 ) -> dict[int, np.ndarray]:
     """Load released CIB intensity maps [Jy/sr] for the given bands."""
-    bands = bands or set(CIB_FILES)
+    bands = bands or set(cfg.cib_files)
     out = {}
     for nu in sorted(bands):
         print(f"CIB: loading released {nu} GHz...")
-        out[nu] = load_flamingo_map(cfg.data_dir / CIB_FILES[nu], cfg.nside)
+        out[nu] = load_flamingo_map(cfg.data_dir / cfg.cib_files[nu], cfg.nside)
     return out
 
 
@@ -89,9 +91,9 @@ def copy_released_cib_intensity(
     out_dir = out_dir or cfg.raw_dir / "cib"
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = {}
-    for nu in sorted(CIB_FILES):
-        src = cfg.data_dir / CIB_FILES[nu]
-        dst = out_dir / f"CIB_I_{nu}GHz_nside{cfg.nside}.fits"
+    for nu in sorted(cfg.cib_files):
+        src = cfg.data_dir / cfg.cib_files[nu]
+        dst = out_dir / f"CIB_I_{nu}GHz_nside{cfg.nside}{src.suffix}"
         if not dst.exists():
             print(f"CIB: archiving released {nu} GHz intensity...")
             copy_or_link(src, dst, use_symlink=use_symlink)
@@ -106,7 +108,7 @@ def make_cib_maps(
 ) -> dict[float, np.ndarray]:
     """Build CIB dT maps [uK_CMB] at every frequency in the config."""
     out_dir = out_dir or cfg.raw_dir / "cib"
-    cib_I = load_cib_intensities(cfg, _needed_bands(cfg.frequencies))
+    cib_I = load_cib_intensities(cfg, _needed_bands(cfg.frequencies, cfg.cib_files))
 
     maps: dict[float, np.ndarray] = {}
     for nu in cfg.frequencies:

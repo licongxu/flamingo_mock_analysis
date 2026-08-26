@@ -10,14 +10,14 @@ from pathlib import Path
 
 import numpy as np
 
-from .config import KSZ_FILE, MockConfig
+from .config import MockConfig
 from .io import copy_or_link, load_flamingo_map, write_map
 from .spectral import b_to_delta_T_uK
 
 
 def load_doppler_b(cfg: MockConfig) -> np.ndarray:
     """Load the lensed Doppler-b map (dimensionless, dT/T_CMB = -b)."""
-    return load_flamingo_map(cfg.data_dir / KSZ_FILE, cfg.nside)
+    return load_flamingo_map(cfg.data_dir / cfg.ksz_file, cfg.nside)
 
 
 def archive_doppler_b(
@@ -29,7 +29,7 @@ def archive_doppler_b(
     dst = out_dir / f"doppler_b_nside{cfg.nside}.fits"
     if not dst.exists():
         print("kSZ: archiving lensed Doppler-b map...")
-        copy_or_link(cfg.data_dir / KSZ_FILE, dst, use_symlink=use_symlink)
+        copy_or_link(cfg.data_dir / cfg.ksz_file, dst, use_symlink=use_symlink)
     else:
         print(f"kSZ: reusing {dst.name}")
     return dst

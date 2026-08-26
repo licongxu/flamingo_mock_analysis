@@ -6,14 +6,14 @@ from pathlib import Path
 
 import numpy as np
 
-from .config import TSZ_FILE, MockConfig
+from .config import MockConfig
 from .io import copy_or_link, load_flamingo_map, write_map
 from .spectral import y_to_delta_T_uK
 
 
 def load_compton_y(cfg: MockConfig) -> np.ndarray:
     """Load the lensed Compton-y map (dimensionless)."""
-    return load_flamingo_map(cfg.data_dir / TSZ_FILE, cfg.nside)
+    return load_flamingo_map(cfg.data_dir / cfg.tsz_file, cfg.nside)
 
 
 def archive_compton_y(
@@ -25,7 +25,7 @@ def archive_compton_y(
     dst = out_dir / f"compton_y_nside{cfg.nside}.fits"
     if not dst.exists():
         print("tSZ: archiving lensed Compton-y map...")
-        copy_or_link(cfg.data_dir / TSZ_FILE, dst, use_symlink=use_symlink)
+        copy_or_link(cfg.data_dir / cfg.tsz_file, dst, use_symlink=use_symlink)
     else:
         print(f"tSZ: reusing {dst.name}")
     return dst

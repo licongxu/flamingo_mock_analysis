@@ -12,12 +12,12 @@ from .config import NSIDE_NATIVE
 
 
 def load_flamingo_map(path: Path, nside_out: int | None = None) -> np.ndarray:
-    """Load a FLAMINGO integrated map (Nside=4096 RING FITS, 'data' column).
+    """Load a FLAMINGO integrated map (Nside=4096 RING FITS or HDF5 ``data``).
 
     Parameters
     ----------
     path
-        FITS file of the integrated map.
+        FITS or Yang26 HDF5 file of the integrated map.
     nside_out
         If given and smaller than the native Nside, downgrade with
         ``hp.ud_grade`` (for quick tests / previews).
@@ -25,7 +25,13 @@ def load_flamingo_map(path: Path, nside_out: int | None = None) -> np.ndarray:
     path = Path(path)
     if not path.is_file():
         raise FileNotFoundError(path)
-    m = hp.read_map(str(path), dtype=np.float64)
+    if path.suffix.lower() in {".hdf5", ".h5"}:
+        import h5py
+
+        with h5py.File(path, "r") as h:
+            m = np.asarray(h["data"], dtype=np.float64)
+    else:
+        m = hp.read_map(str(path), dtype=np.float64)
     if m.size != 12 * NSIDE_NATIVE**2:
         raise ValueError(
             f"{path.name}: expected {12 * NSIDE_NATIVE**2} pixels "

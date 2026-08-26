@@ -30,6 +30,17 @@ COSMOLOGY_D3A = dict(
     ns=0.967,
 )
 
+# FLAMINGO LS8 (Amon et al. 2023 S8 prior), Yang et al. 2026 Table 1.
+# sigma8=0.760, S8=0.766 (derived; CAMB is driven by As).
+COSMOLOGY_LS8 = dict(
+    h=0.682,
+    Om=0.305,
+    Ob=0.0473,
+    mnu=0.06,
+    As=1.836e-9,
+    ns=0.965,
+)
+
 # Fiducial three-parameter CIB SED (Yang et al. 2026, Section 3.5.1).
 CIB_BETA_D = 1.65
 CIB_T0 = 35.14  # K
@@ -80,6 +91,9 @@ class MockConfig:
     seed: int = 42
     z_eff: float = CIB_Z_EFF
     cosmology: dict = field(default_factory=lambda: dict(COSMOLOGY_D3A))
+    tsz_file: str = TSZ_FILE
+    ksz_file: str = KSZ_FILE
+    cib_files: dict = field(default_factory=lambda: dict(CIB_FILES))
 
     def __post_init__(self) -> None:
         self.data_dir = Path(self.data_dir)

@@ -15,8 +15,13 @@ from pathlib import Path
 import healpy as hp
 import numpy as np
 
-from .config import MockConfig
+from .config import KAPPA_FILE, MockConfig
 from .io import load_flamingo_map, write_map
+
+
+def load_kappa(path: Path, nside: int) -> np.ndarray:
+    """Load a HEALPix kappa map from FITS or Yang26 HDF5 (``data`` dataset)."""
+    return load_flamingo_map(path, nside)
 
 
 def camb_unlensed_cltt(lmax: int, cosmo: dict) -> np.ndarray:
@@ -81,23 +86,35 @@ def lens_cmb_map(
     return np.asarray(t_lensed).reshape(-1), t_unlensed
 
 
-def make_lensed_cmb(cfg: MockConfig, out_dir: Path | None = None) -> np.ndarray:
+def make_lensed_cmb(
+    cfg: MockConfig,
+    out_dir: Path | None = None,
+    *,
+    kappa_path: Path | None = None,
+    name_suffix: str = "",
+) -> np.ndarray:
     """Full pipeline: CAMB spectrum -> realization -> lensing -> FITS.
 
     Returns the lensed CMB temperature map in uK_CMB at ``cfg.nside``.
+    ``kappa_path`` defaults to ``cfg.data_dir / kappa_rot.fits``.
+    ``name_suffix`` is appended to output filenames (e.g. ``LS8``).
     """
     out_dir = out_dir or cfg.raw_dir / "cmb"
     tag = f"nside{cfg.nside}_seed{cfg.seed}"
+    if name_suffix:
+        tag = f"{tag}_{name_suffix}"
     out_path = out_dir / f"primary_CMB_T_lensed_{tag}.fits"
     if out_path.is_file():
         print(f"CMB: reusing cached {out_path}")
         return hp.read_map(str(out_path), dtype=np.float64)
 
+    kappa_path = Path(kappa_path) if kappa_path else cfg.data_dir / KAPPA_FILE
+
     print(f"CMB: CAMB unlensed C_ell^TT (lmax={cfg.lmax})...")
     cltt = camb_unlensed_cltt(cfg.lmax, cfg.cosmology)
 
-    print("CMB: loading FLAMINGO kappa...")
-    kappa = load_flamingo_map(cfg.data_dir / "kappa_rot.fits", cfg.nside)
+    print(f"CMB: loading kappa from {kappa_path}...")
+    kappa = load_kappa(kappa_path, cfg.nside)
     kappa = kappa - np.mean(kappa)
 
     print("CMB: kappa -> phi_alm...")
@@ -112,18 +129,22 @@ def make_lensed_cmb(cfg: MockConfig, out_dir: Path | None = None) -> np.ndarray:
         f"lensed std={t_lensed.std():.2f} uK"
     )
 
+    extra_common = [("SEED", cfg.seed)]
+    if name_suffix:
+        extra_common.append(("COSMO", name_suffix))
+
     write_map(
         out_path,
         t_lensed,
         unit="uK_CMB",
-        extra=[("COMP", "lensed primary CMB"), ("SEED", cfg.seed)],
+        extra=[("COMP", "lensed primary CMB"), *extra_common],
         dtype=np.float64,
     )
     write_map(
         out_dir / f"primary_CMB_T_unlensed_{tag}.fits",
         t_unlensed,
         unit="uK_CMB",
-        extra=[("COMP", "unlensed primary CMB"), ("SEED", cfg.seed)],
+        extra=[("COMP", "unlensed primary CMB"), *extra_common],
         dtype=np.float64,
     )
     np.savez(
@@ -134,5 +155,6 @@ def make_lensed_cmb(cfg: MockConfig, out_dir: Path | None = None) -> np.ndarray:
         lmax=cfg.lmax,
         nside=cfg.nside,
         seed=cfg.seed,
+        kappa_path=str(kappa_path),
     )
     return t_lensed
