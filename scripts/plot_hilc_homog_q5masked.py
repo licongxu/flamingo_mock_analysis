@@ -1,9 +1,7 @@
-"""HILC y vs truth after pyILC beam deconvolution (B_10 / B_nu, then / B_10).
+"""HILC y (q>5 cluster-masked) vs truth, same beam convention as the full-sky plots.
 
-Observed maps are d = B_nu s + n (noise unbeamed). pyILC multiplies each
-channel by B_10 / B_nu (McCarthy & Hill 2024). The y-map is at 10'; we
-deconvolve that common beam so spectra match unbeamed truth. Noise is
-left as n / B_nu, not B_10 n.
+HILC is run on the nside=2048 homog observed maps. Spectra use the C2 0.25°
+apodized cluster mask (tsz_cnc_paper_plots recipe) and NaMaster.
 """
 from __future__ import annotations
 
@@ -12,10 +10,11 @@ from pathlib import Path
 import healpy as hp
 import matplotlib.pyplot as plt
 import numpy as np
+import pymaster as nmt
 from pyilc.fg import get_mix
 
 from flamingo_mock.config import BEAM_FWHM_ARCMIN
-from flamingo_mock.powerspectra import bin_cl, compute_cl, dl_from_cl
+from flamingo_mock.powerspectra import bin_cl, dl_from_cl
 from flamingo_mock.spectral import dB_dT_Jy_per_sr_per_K
 
 NSIDE = 2048
@@ -24,24 +23,29 @@ FWHM_ILC = 10.0
 DELTA_ELL = 21
 BINSIZE, BEAM_CRIT = 50, 1.0e-3
 
-FREQS = (100, 143, 353, 217, 545, 857)  # YAML / weight order
+FREQS = (100, 143, 353, 217, 545, 857)
 NELL_UK2 = {100: 5.07e-4, 143: 9.21e-5, 353: 2.00e-3, 217: 1.85e-4, 545: 5.51e-2, 857: 30.9}
 
 YMAP = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog"
-    "/flamingo_needletILCmap_component_tSZ_hilc_y_homog_fullsky.fits"
+    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked"
+    "/flamingo_needletILCmap_component_tSZ_hilc_y_homog_q5masked.fits"
 )
 TRUTH = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/test"
     "/compton_y_nside4096.fits"
 )
-WDIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog")
+MASK = Path(
+    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc"
+    "/szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
+)
+WDIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked")
+WDIR_FULL = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog")
 CIB_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/cib/test")
 SED_YML = "/scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml"
 FIG_DIR = Path("/scratch/scratch-lxu/flamingo_mock_analysis/figures")
 
 
-def hilc_weights(lmax: int) -> np.ndarray:
+def hilc_weights(wdir: Path, lmax: int) -> tuple[np.ndarray, list]:
     fwhm_ch = [BEAM_FWHM_ARCMIN[int(f)] for f in FREQS]
     ellbins = np.arange(0, lmax + 1, BINSIZE)
     n_scales = len(ellbins) - 1
@@ -60,7 +64,7 @@ def hilc_weights(lmax: int) -> np.ndarray:
     for j in range(n_scales):
         use = [ell_F[j] <= ell_B[a] for a in range(len(FREQS))]
         wraw = np.atleast_1d(
-            np.loadtxt(WDIR / f"flamingo_weightvector_scale{j}_component_tSZ.txt")
+            np.loadtxt(wdir / f"flamingo_weightvector_scale{j}_component_tSZ.txt")
         ).ravel()
         sl = filts[j] > 0
         count = 0
@@ -110,10 +114,53 @@ def p15_cib_cl_jy(ells: np.ndarray) -> np.ndarray:
     return cl_jy
 
 
+def nmt_field(m: np.ndarray, w: np.ndarray, lmax: int) -> nmt.NmtField:
+    m = np.asarray(m, dtype=np.float64)
+    m = m - np.sum(w * m) / np.sum(w)
+    return nmt.NmtField(w, [m], lmax=lmax)
+
+
+def namaster_cls(
+    maps: list[np.ndarray],
+    w: np.ndarray,
+    lmax: int,
+    nlb: int,
+    wsp: nmt.NmtWorkspace | None = None,
+    bins: nmt.NmtBin | None = None,
+):
+    """Decoupled C_ell at nside=2048. Weighted monopole removed."""
+    fields = [nmt_field(m, w, lmax) for m in maps]
+    if bins is None:
+        bins = nmt.NmtBin.from_lmax_linear(lmax, nlb)
+    if wsp is None:
+        print("computing NaMaster coupling matrix ...", flush=True)
+        wsp = nmt.NmtWorkspace.from_fields(fields[0], fields[0], bins)
+    out = {}
+    for i, fi in enumerate(fields):
+        for j, fj in enumerate(fields):
+            if j < i:
+                continue
+            out[(i, j)] = wsp.decouple_cell(nmt.compute_coupled_cell(fi, fj))[0]
+    return bins.get_effective_ells(), out, wsp, bins
+
+
+def deconv(cl: np.ndarray, bl: np.ndarray, power: int) -> np.ndarray:
+    good = bl >= 1e-3
+    out = np.full_like(cl, np.nan)
+    out[good] = cl[good] / bl[good] ** power
+    return out
+
+
 def main() -> None:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     bl10 = hp.gauss_beam(np.deg2rad(FWHM_ILC / 60.0), lmax=LMAX)
     ells = np.arange(LMAX + 1, dtype=np.float64)
+    good = bl10 >= 1e-3
+
+    w = np.asarray(hp.read_map(str(MASK), field=0, dtype=np.float64))
+    if hp.get_nside(w) != NSIDE:
+        w = hp.ud_grade(w, NSIDE)
+    print(f"mask fsky_raw={(w > 0).mean():.4f}  <W^2>={np.mean(w**2):.4f}")
 
     y_ilc = np.asarray(hp.read_map(str(YMAP), field=0, dtype=np.float64))
     y_true = np.asarray(hp.read_map(str(TRUTH), field=0, dtype=np.float64))
@@ -123,44 +170,31 @@ def main() -> None:
         y_true = hp.ud_grade(y_true, NSIDE)
     print(f"ILC rms={y_ilc.std():.4g}  truth rms={y_true.std():.4g}")
 
-    cl_yy = compute_cl(y_ilc, lmax=LMAX, deconv_pixel_window=False)
-    cl_tt = compute_cl(y_true, lmax=LMAX, deconv_pixel_window=False)
-    cl_yt = compute_cl(y_ilc, y_true, lmax=LMAX, deconv_pixel_window=False)
-    good = bl10 >= 1e-3
-    cl_yy_dec = np.full_like(cl_yy, np.nan)
-    cl_yy_dec[good] = cl_yy[good] / bl10[good] ** 2
-    cl_yt_dec = np.full_like(cl_yt, np.nan)
-    cl_yt_dec[good] = cl_yt[good] / bl10[good]
-    cl_tt_10 = cl_tt * bl10**2
-
-    ell_b, yy_b = bin_cl(cl_yy, delta_ell=DELTA_ELL)
-    _, tt_b = bin_cl(cl_tt, delta_ell=DELTA_ELL)
-    _, yt_b = bin_cl(cl_yt, delta_ell=DELTA_ELL)
-    _, yy_dec_b = bin_cl(cl_yy_dec, delta_ell=DELTA_ELL)
-    _, yt_dec_b = bin_cl(cl_yt_dec, delta_ell=DELTA_ELL)
-    _, tt10_b = bin_cl(cl_tt_10, delta_ell=DELTA_ELL)
+    print("NaMaster decoupling ...", flush=True)
+    ell_b, cls, wsp, bins = namaster_cls([y_ilc, y_true], w, LMAX, DELTA_ELL)
+    yy_b = cls[(0, 0)]
+    tt_b = cls[(1, 1)]
+    yt_b = cls[(0, 1)]
+    bl10_b = np.interp(ell_b, ells, bl10)
+    yy_dec_b = deconv(yy_b, bl10_b, 2)
+    yt_dec_b = deconv(yt_b, bl10_b, 1)
+    tt10_b = tt_b * bl10_b**2
     with np.errstate(divide="ignore", invalid="ignore"):
         transfer_b = yt_dec_b / tt_b
         rho_b = yt_dec_b / np.sqrt(np.abs(yy_dec_b * tt_b))
     band = (ell_b >= 50) & (ell_b <= 500)
-    print(f"median transfer C_yt/(B_10 C_tt) 50-500: {np.nanmedian(transfer_b[band]):.3f}")
-    print(f"median rho (B_10-deconv) 50-500: {np.nanmedian(rho_b[band]):.3f}")
+    print(f"median transfer 50-500: {np.nanmedian(transfer_b[band]):.3f}")
+    print(f"median rho 50-500: {np.nanmedian(rho_b[band]):.3f}")
 
     fig, axes = plt.subplots(2, 1, figsize=(8.2, 8.2), sharex=True)
     ax = axes[0]
     ax.loglog(ell_b, dl_from_cl(ell_b, tt_b), color="k", lw=2, label=r"truth $y$ (unsmoothed)")
-    ax.loglog(
-        ell_b, dl_from_cl(ell_b, tt10_b), color="0.55", lw=1.6,
-        label=r"truth $\times B_{10'}^2$",
-    )
+    ax.loglog(ell_b, dl_from_cl(ell_b, tt10_b), color="0.55", lw=1.6, label=r"truth $\times B_{10'}^2$")
     ax.loglog(ell_b, dl_from_cl(ell_b, yy_b), color="C0", lw=1.4, ls=":", label=r"HILC $y$ (raw, at $10'$)")
-    ax.loglog(
-        ell_b, dl_from_cl(ell_b, yy_dec_b), color="C0", lw=1.8,
-        label=r"HILC $y$ / $B_{10'}^2$",
-    )
+    ax.loglog(ell_b, dl_from_cl(ell_b, yy_dec_b), color="C0", lw=1.8, label=r"HILC $y$ / $B_{10'}^2$")
     ax.loglog(ell_b, np.abs(dl_from_cl(ell_b, yt_dec_b)), color="C1", lw=1.4, label=r"$|C_\ell^{yt}|/B_{10'}$")
     ax.set_ylabel(r"$D_\ell=\ell(\ell+1)C_\ell/2\pi$")
-    ax.set_title(r"Full-sky HILC $y$, pyILC $B_{10'}$ deconvolved, vs FLAMINGO truth")
+    ax.set_title(r"HILC $y$, $q>5$ clusters masked, vs FLAMINGO truth")
     ax.legend(frameon=False, fontsize=9)
     ax.set_xlim(2, LMAX)
     ax = axes[1]
@@ -172,12 +206,13 @@ def main() -> None:
     ax.set_ylabel("transfer / correlation")
     ax.legend(frameon=False, fontsize=9)
     fig.tight_layout()
-    out1 = FIG_DIR / "hilc_homog_fullsky_y_vs_truth_ps.png"
+    out1 = FIG_DIR / "hilc_homog_q5masked_y_vs_truth_ps.png"
     fig.savefig(out1, dpi=150)
     plt.close(fig)
     print("wrote", out1)
 
-    w_ell, inp_beams = hilc_weights(LMAX)
+    w_ell, inp_beams = hilc_weights(WDIR, LMAX)
+    w_full, _ = hilc_weights(WDIR_FULL, LMAX)
     idx = {f: i for i, f in enumerate(FREQS)}
     cl_jy = p15_cib_cl_jy(ells)
     R = np.eye(len(FREQS))
@@ -198,67 +233,84 @@ def main() -> None:
             continue
         cj = cl_jy[:, L]
         Ck = np.outer(k_per_jy, k_per_jy) * (R * np.sqrt(np.outer(cj, cj)))
-        w = w_ell[:, L]
-        cl_cib_p15[L] = w @ Ck @ w
+        ww = w_ell[:, L]
+        cl_cib_p15[L] = ww @ Ck @ ww
         cl_n[L] = sum(
-            (w[a] / max(inp_beams[a][L], 1e-30)) ** 2 * (NELL_UK2[f] * 1e-12)
+            (ww[a] / max(inp_beams[a][L], 1e-30)) ** 2 * (NELL_UK2[f] * 1e-12)
             for a, f in enumerate(FREQS)
         )
 
-    print("loading CIB maps ...")
+    print("CIB maps at nside=2048 ...", flush=True)
     y_alm = None
+    y_alm_full = None
     for a, f in enumerate(FREQS):
-        m = np.asarray(hp.read_map(str(CIB_DIR / f"CIB_deltaT_{f}GHz_nside4096.fits"), dtype=np.float64))
-        m = hp.ud_grade(m, NSIDE) * 1e-6
-        m -= np.mean(m)
+        m0 = np.asarray(hp.read_map(str(CIB_DIR / f"CIB_deltaT_{f}GHz_nside4096.fits"), dtype=np.float64))
+        m0 = hp.ud_grade(m0, NSIDE) * 1e-6
+        m_full = m0 - np.mean(m0)
+        alm_full = hp.map2alm(m_full, lmax=LMAX, iter=0)
+        contrib_full = hp.almxfl(alm_full, w_full[a])
+        y_alm_full = contrib_full if y_alm_full is None else y_alm_full + contrib_full
+        m = m0 * w
+        m -= np.sum(w * m) / np.sum(w)
         alm = hp.map2alm(m, lmax=LMAX, iter=0)
         contrib = hp.almxfl(alm, w_ell[a])
         y_alm = contrib if y_alm is None else y_alm + contrib
         print(f"  CIB {f} GHz  rms={m.std():.3e} K")
-        del m
-    cl_map = hp.alm2cl(y_alm)
-    del y_alm
+        del m, m0, m_full
+    y_cib = hp.alm2map(y_alm, nside=NSIDE, lmax=LMAX)
+    cl_map_full = hp.alm2cl(y_alm_full)
+    del y_alm, y_alm_full
+    _, cls_cib, _, _ = namaster_cls([y_cib], w, LMAX, DELTA_ELL, wsp=wsp, bins=bins)
+    map_b = cls_cib[(0, 0)]
+    _, map_full_b = bin_cl(cl_map_full, delta_ell=DELTA_ELL)
 
     a_tsz = 1e-6 * np.array(
         [get_mix([float(f)], "tSZ", param_dict_file=SED_YML)[0] for f in FREQS]
     )
     g_tsz = a_tsz @ w_ell
-    cl_th = (g_tsz ** 2) * cl_tt
-    print(f"g=sum w a_tSZ: ell50={g_tsz[50]:.4f}  ell300={g_tsz[300]:.4f}  ell1500={g_tsz[1500]:.4f}")
+    # Interpolate g(ell) onto NaMaster bins; tSZ uses masked truth auto.
+    g_b = np.interp(ell_b, ells, g_tsz)
+    th_b = (g_b**2) * tt_b
+    print(f"g=sum w a_tSZ: ell50={g_tsz[50]:.4f}  ell300={g_tsz[300]:.4f}")
 
     _, cib_b = bin_cl(cl_cib_p15, delta_ell=DELTA_ELL)
     _, n_b = bin_cl(cl_n, delta_ell=DELTA_ELL)
-    _, map_b = bin_cl(cl_map, delta_ell=DELTA_ELL)
-    _, th_b = bin_cl(cl_th, delta_ell=DELTA_ELL)
+    ell_th, _ = bin_cl(cl_cib_p15, delta_ell=DELTA_ELL)
+    cib_b = np.interp(ell_b, ell_th, cib_b)
+    n_b = np.interp(ell_b, ell_th, n_b)
+    map_full_b = np.interp(ell_b, ell_th, map_full_b)
+
     dl_tot = dl_from_cl(ell_b, yy_dec_b)
     dl_cib = dl_from_cl(ell_b, cib_b)
     dl_n = dl_from_cl(ell_b, n_b)
     dl_map = dl_from_cl(ell_b, map_b)
+    dl_map_full = dl_from_cl(ell_b, map_full_b)
     dl_th = dl_from_cl(ell_b, th_b)
     dl_sum = dl_th + dl_map + dl_n
 
-    print("ell   D_HILC       D_th         D_CIB_map    D_noise")
+    print("ell   D_HILC       D_th         D_CIB_full   D_CIB_q5     D_noise")
     for L0 in (50, 100, 300, 500, 1000, 1500, 2000):
         i = int(np.nanargmin(np.abs(ell_b - L0)))
         print(
             f"{ell_b[i]:5.0f}  {dl_tot[i]:10.3e}  {dl_th[i]:10.3e}  "
-            f"{dl_map[i]:10.3e}  {dl_n[i]:10.3e}"
+            f"{dl_map_full[i]:10.3e}  {dl_map[i]:10.3e}  {dl_n[i]:10.3e}"
         )
 
     fig, ax = plt.subplots(figsize=(8.2, 4.8))
     ax.loglog(ell_b, dl_tot, "C0", lw=2.2, label=r"HILC $y$ / $B_{10'}^2$")
     ax.loglog(ell_b, dl_th, color="k", lw=1.8, ls="-.", label=r"tSZ ($\sum w a^{\mathrm{tSZ}}\times$ truth)")
     ax.loglog(ell_b, dl_cib, "C3", lw=2.0, label=r"CIB P15 (weights, unbeamed)")
-    ax.loglog(ell_b, dl_map, "C1", lw=1.8, label=r"CIB from maps (weights)")
+    ax.loglog(ell_b, dl_map_full, "C1", lw=2.0, label=r"CIB from maps (full sky)")
+    ax.loglog(ell_b, dl_map, "C1", lw=1.8, ls="--", label=r"CIB from maps ($q>5$ masked)")
     ax.loglog(ell_b, dl_n, color="0.35", lw=1.6, ls=":", label=r"noise $\sum (w_\nu/B_\nu)^2 N_\ell$")
     ax.loglog(ell_b, dl_sum, color="C4", lw=1.5, ls="--", label=r"$y_{\mathrm{th}}+\mathrm{CIB}_{\mathrm{map}}+N$")
     ax.set_xlim(10, LMAX)
     ax.set_xlabel(r"$\ell$")
     ax.set_ylabel(r"$D_\ell=\ell(\ell+1)C_\ell/2\pi$")
-    ax.set_title(r"Beam-deconvolved HILC $y$: tSZ, CIB, noise ($n/B_\nu$)")
+    ax.set_title(r"HILC $y$ ($q>5$ masked): tSZ, CIB, noise")
     ax.legend(frameon=False, fontsize=8)
     fig.tight_layout()
-    out2 = FIG_DIR / "hilc_homog_fullsky_y_cib_noise_residual.png"
+    out2 = FIG_DIR / "hilc_homog_q5masked_y_cib_noise_residual.png"
     fig.savefig(out2, dpi=150)
     plt.close(fig)
     print("wrote", out2)
