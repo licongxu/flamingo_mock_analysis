@@ -22,7 +22,24 @@ Pilot (few high-|b| tiles)::
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
+
+# Must run before numpy/jax/healpy import so fork workers inherit a 1-thread pool.
+for _k in (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+    "NPROC",
+    "NUMBA_NUM_THREADS",
+):
+    os.environ.setdefault(_k, "1")
+os.environ.setdefault("JAX_PLATFORMS", "cpu")
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+os.environ.setdefault("JAX_NUM_CPU_DEVICES", "1")
+os.environ.setdefault("XLA_FLAGS", "--xla_cpu_multi_thread_eigen=false")
 
 from .paths import (
     DEFAULT_OUT_ROOT_HOMOG,
@@ -184,6 +201,7 @@ def main(argv: list[str] | None = None) -> None:
             split=args.split,
             overwrite=args.overwrite,
             n_workers=args.n_workers,
+            threads_per_worker=getattr(args, "threads_per_worker", None),
             unmasked=bool(getattr(args, "full_sky", False)),
         )
         print("prepare done")
@@ -196,6 +214,7 @@ def main(argv: list[str] | None = None) -> None:
             split=args.split,
             overwrite=False,
             n_workers=args.n_workers,
+            threads_per_worker=getattr(args, "threads_per_worker", None),
             unmasked=bool(getattr(args, "full_sky", False)),
         )
         if args.pilot:

@@ -226,6 +226,7 @@ def prepare_tiles(
     overwrite: bool = False,
     n_workers: int | None = None,
     unmasked: bool = False,
+    threads_per_worker: int | None = None,
 ) -> list[int]:
     """Load skies once; write cutouts for all ``field_ids`` (CPU-parallel, half-machine cap)."""
     from concurrent.futures import ProcessPoolExecutor
@@ -236,7 +237,9 @@ def prepare_tiles(
     global _PREP_STATE, _MASK_STATE
 
     if unmasked:
-        workers, threads = half_machine_pool_limits(n_workers)
+        workers, threads = half_machine_pool_limits(
+            n_workers, threads_per_worker=threads_per_worker
+        )
         workers = min(workers, max(1, len(field_ids)))
         print(
             f"prepare: writing unmasked (GAL=PS=1) masks for {len(field_ids)} tiles; "
@@ -278,7 +281,9 @@ def prepare_tiles(
         gal, ps = load_pr4_gal_ps(paths.masks_fits, nside=paths.nside)
     paths.make_dirs(split)
 
-    workers, threads = half_machine_pool_limits(n_workers)
+    workers, threads = half_machine_pool_limits(
+        n_workers, threads_per_worker=threads_per_worker
+    )
     workers = min(workers, len(todo))
     print(
         f"prepare: {len(todo)} tiles to cut ({len(field_ids) - len(todo)} exist); "
