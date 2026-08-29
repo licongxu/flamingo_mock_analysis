@@ -15,6 +15,7 @@ from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", "0.75")
 os.environ["XLA_FLAGS"] = ""
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ.setdefault("OMP_NUM_THREADS", "10")
@@ -44,15 +45,15 @@ from flamingo_mock.szifi.tiles import select_all_tile_ids  # noqa: E402
 
 import szifi_jax  # noqa: E402
 
-REF_CAT = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/catalogues/"
-    "homog_immf_fullsky_splitA_immf_q5.npz"
-)
+HOMOG_ROOT = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog")
+REF_CAT = HOMOG_ROOT / "catalogues" / "homog_immf_fullsky_splitA_immf_q5.npz"
 YMAP = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/"
     "compton_y_nside4096.fits"
 )
 FIG_OUT = Path("figures/szifi_homog_immf_mollview.png")
+PRESCRIPTIONS = ("L1_m9", "fgas-8sigma", "Mstar-1sigma", "LS8")
+Q_EDGES = np.geomspace(5.0, 40.0, 6)
 JAX_ONLY = {
     "powspec_implementation": "nmt_jax",  # GPU; matches NaMaster coupled cells at ~1e-16
     "inv_cov_backend": "numpy",  # unique-bin LAPACK then GPU scatter (CNC-exact)
@@ -186,6 +187,12 @@ def compare_to_ref(cat, ref_path: Path, radius_arcmin=1.0, field_ids=None) -> di
     q = np.asarray(cat["q_opt"])
     ok, dist, idx = match_lonlat(lon, lat, lon_r, lat_r, radius_arcmin)
     ok_r, dist_r, _ = match_lonlat(lon_r, lat_r, lon, lat, radius_arcmin)
+    nq_jax = np.histogram(q, bins=Q_EDGES)[0].astype(int).tolist()
+    nq_ref = (
+        np.histogram(q_r, bins=Q_EDGES)[0].astype(int).tolist()
+        if q_r is not None
+        else None
+    )
     out = {
         "n_jax": int(len(q)),
         "n_ref": int(len(lon_r)),
@@ -197,6 +204,9 @@ def compare_to_ref(cat, ref_path: Path, radius_arcmin=1.0, field_ids=None) -> di
         "n_unmatched_ref": int((~ok_r).sum()),
         "median_abs_dq": None,
         "max_abs_dq": None,
+        "nq_jax": nq_jax,
+        "nq_ref": nq_ref,
+        "nq_match": nq_jax == nq_ref,
     }
     if q_r is not None and ok.any():
         dq = np.abs(q[ok] - q_r[idx[ok]])
@@ -214,49 +224,62 @@ def compare_to_ref(cat, ref_path: Path, radius_arcmin=1.0, field_ids=None) -> di
         ),
         flush=True,
     )
+    print(f"  N(q) jax={out['nq_jax']}  ref={out['nq_ref']}  bins={out['nq_match']}", flush=True)
     return out
 
 
-def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--field-ids", type=int, nargs="+", default=None)
-    p.add_argument("--batch-size", type=int, default=16)
-    p.add_argument("--q-th", type=float, default=5.0)
-    p.add_argument("--out-root", type=Path, default=DEFAULT_OUT_ROOT_HOMOG)
-    p.add_argument(
-        "--tag",
-        default="homog_immf_fullsky_szifi_jax",
-        help="Catalogue name tag (does not overwrite the original NumPy catalogue)",
-    )
-    p.add_argument("--fig", type=Path, default=FIG_OUT)
-    p.add_argument("--skip-plot", action="store_true")
-    args = p.parse_args()
+def all_clusters_match(stats: dict) -> bool:
+    """True if every cluster matches: same N, all positions, identical N(q) bins."""
+    if stats["n_jax"] != stats["n_ref"]:
+        return False
+    if stats["n_unmatched_jax"] or stats["n_unmatched_ref"]:
+        return False
+    if stats.get("nq_match") is False:
+        return False
+    return True
 
-    print(f"jax devices: {jax.devices()}", flush=True)
-    paths = SZiFiPaths(out_root=args.out_root, kind="homog")
-    field_ids = args.field_ids if args.field_ids is not None else select_all_tile_ids()
+
+def numpy_ref_cat(out_root: Path) -> Path:
+    p = Path(out_root) / "catalogues" / "fullsky_splitA_immf_q5.npz"
+    if p.is_file():
+        return p
+    return REF_CAT
+
+
+def run_one(
+    *,
+    out_root: Path,
+    field_ids: list[int] | None,
+    batch_size: int,
+    q_th: float,
+    tag: str,
+    ref_cat: Path,
+    skip_plot: bool,
+    fig: Path,
+) -> dict:
+    paths = SZiFiPaths(out_root=out_root, kind="homog")
+    ids = field_ids if field_ids is not None else select_all_tile_ids()
     out_dir = paths.catalogues_dir()
-    partial_dir = out_dir / f"partial_{args.tag}_splitA_immf"
+    partial_dir = out_dir / f"partial_{tag}_splitA_immf"
     partial_dir.mkdir(parents=True, exist_ok=True)
-
     print(
-        f"tiles n={len(field_ids)} batch={args.batch_size}  GPU={os.environ['CUDA_VISIBLE_DEVICES']}",
+        f"tiles n={len(ids)} batch={batch_size}  GPU={os.environ['CUDA_VISIBLE_DEVICES']}  "
+        f"out_root={out_root}",
         flush=True,
     )
-
     partials: list[Path] = []
-    n_batch = (len(field_ids) + args.batch_size - 1) // args.batch_size
+    n_batch = (len(ids) + batch_size - 1) // batch_size
     t_all = time.time()
-    for b, start in enumerate(range(0, len(field_ids), args.batch_size)):
-        batch = field_ids[start : start + args.batch_size]
-        part = partial_dir / f"batch_{b:04d}_q{args.q_th:g}.npz"
+    for b, start in enumerate(range(0, len(ids), batch_size)):
+        batch = ids[start : start + batch_size]
+        part = partial_dir / f"batch_{b:04d}_q{q_th:g}.npz"
         partials.append(part)
         if part.exists() and part.stat().st_size > 100:
             print(f"[resume] batch {b+1}/{n_batch} {part.name}", flush=True)
             continue
         t0 = time.time()
         cat = run_mmf_jax(
-            paths, batch, q_th_final=args.q_th, gpu_tile_batch=args.batch_size
+            paths, batch, q_th_final=q_th, gpu_tile_batch=batch_size
         )
         n = len(cat.catalogue.get("q_opt", []))
         save_catalogue_npz(
@@ -268,7 +291,7 @@ def main() -> None:
                 "batch": b,
                 "field_ids": list(batch),
                 "n_detections": int(n),
-                "q_th_final": args.q_th,
+                "q_th_final": q_th,
             },
         )
         dt = time.time() - t0
@@ -278,20 +301,20 @@ def main() -> None:
             flush=True,
         )
 
-    out = out_dir / f"{args.tag}_splitA_immf_q{args.q_th:g}.npz"
+    out = out_dir / f"{tag}_splitA_immf_q{q_th:g}.npz"
     merge_catalogue_npzs(
         partials,
         out,
-        q_th_final=args.q_th,
+        q_th_final=q_th,
         meta={
             "mmf": "immf",
             "mmf_type": "standard",
             "backend": "szifi_jax",
             "split": "A",
-            "n_tiles": len(field_ids),
-            "batch_size": args.batch_size,
-            "q_th_final": args.q_th,
-            "tag": args.tag,
+            "n_tiles": len(ids),
+            "batch_size": batch_size,
+            "q_th_final": q_th,
+            "tag": tag,
         },
     )
     elapsed = time.time() - t_all
@@ -300,31 +323,107 @@ def main() -> None:
     print(f"merged N={n} → {out}  wall {elapsed/60:.1f} min", flush=True)
 
     stats = None
-    if REF_CAT.is_file() and "lon" in cat:
+    if ref_cat.is_file() and "lon" in cat:
         stats = compare_to_ref(
-            cat, REF_CAT, field_ids=None if args.field_ids is None else field_ids
+            cat, ref_cat, field_ids=None if field_ids is None else ids
         )
-        out.with_suffix(".json").write_text(
-            json.dumps(
-                {
-                    **json.loads(out.with_suffix(".json").read_text()),
-                    "n_detections": n,
-                    "vs_ref": stats,
-                    "wall_s": elapsed,
-                },
-                indent=2,
+        sidecar = out.with_suffix(".json")
+        payload = json.loads(sidecar.read_text()) if sidecar.is_file() else {}
+        payload.update({"n_detections": n, "vs_ref": stats, "wall_s": elapsed})
+        sidecar.write_text(json.dumps(payload, indent=2) + "\n")
+
+    if not skip_plot and n:
+        try:
+            plot_homog_mollview(cat, fig, YMAP)
+        except FileNotFoundError as exc:
+            print(f"skip plot ({exc})", flush=True)
+
+    return {"out": out, "n": n, "stats": stats, "elapsed": elapsed}
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--field-ids", type=int, nargs="+", default=None)
+    p.add_argument("--batch-size", type=int, default=16)
+    p.add_argument("--q-th", type=float, default=5.0)
+    p.add_argument("--out-root", type=Path, default=None)
+    p.add_argument(
+        "--prescription",
+        choices=PRESCRIPTIONS,
+        default=None,
+        help="Run one L1 feedback variation (tiles + NumPy ref under szifi_homog/<name>)",
+    )
+    p.add_argument(
+        "--prescriptions",
+        nargs="+",
+        choices=PRESCRIPTIONS,
+        default=None,
+        help="Run several prescriptions in one process (JIT stays warm)",
+    )
+    p.add_argument(
+        "--tag",
+        default=None,
+        help="Catalogue name tag (does not overwrite the original NumPy catalogue)",
+    )
+    p.add_argument("--ref", type=Path, default=None)
+    p.add_argument("--fig", type=Path, default=FIG_OUT)
+    p.add_argument("--skip-plot", action="store_true")
+    args = p.parse_args()
+
+    print(f"jax devices: {jax.devices()}", flush=True)
+
+    names = list(args.prescriptions) if args.prescriptions else (
+        [args.prescription] if args.prescription else [None]
+    )
+    failed = []
+    for name in names:
+        if name is None:
+            out_root = args.out_root or DEFAULT_OUT_ROOT_HOMOG
+            tag = args.tag or "homog_immf_fullsky_szifi_jax"
+            ref = args.ref or numpy_ref_cat(out_root)
+            if not ref.is_file():
+                ref = REF_CAT
+            skip_plot = args.skip_plot
+        else:
+            out_root = HOMOG_ROOT / name
+            tag = args.tag or "szifi_jax"
+            ref = args.ref or numpy_ref_cat(out_root)
+            skip_plot = True
+        print(f"=== {name or 'homog'}  ref={ref} ===", flush=True)
+        result = run_one(
+            out_root=out_root,
+            field_ids=args.field_ids,
+            batch_size=args.batch_size,
+            q_th=args.q_th,
+            tag=tag,
+            ref_cat=ref,
+            skip_plot=skip_plot,
+            fig=args.fig,
+        )
+        stats = result["stats"]
+        fullsky = args.field_ids is None
+        if stats is None:
+            print("WARNING: no reference catalogue; cannot test ALL-cluster match", flush=True)
+            failed.append(name or "homog")
+        elif fullsky and not all_clusters_match(stats):
+            print(
+                "FAIL: catalogue does not match ALL reference clusters "
+                f"(N jax={stats['n_jax']} ref={stats['n_ref']}, "
+                f"unmatched jax={stats['n_unmatched_jax']} ref={stats['n_unmatched_ref']})",
+                flush=True,
             )
-            + "\n"
-        )
+            failed.append(name or "homog")
+        elif fullsky:
+            print("PASS: ALL clusters match (N, positions, N(q) bins)", flush=True)
+            if stats.get("max_abs_dq") is not None and stats["max_abs_dq"] > 1e-4:
+                print(
+                    f"  note: max |Δq|={stats['max_abs_dq']:.3e} "
+                    "(positions and N(q) still identical)",
+                    flush=True,
+                )
 
-    if not args.skip_plot and n:
-        plot_homog_mollview(cat, args.fig, YMAP)
-
-    if stats is not None and args.field_ids is None:
-        q_bad = stats.get("max_abs_dq") is not None and stats["max_abs_dq"] > 1e-4
-        if stats["n_jax"] != stats["n_ref"] or stats["n_unmatched_jax"] or q_bad:
-            print("WARNING: catalogue does not exactly match the reference N/positions/q", flush=True)
-            sys.exit(1)
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
