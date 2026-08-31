@@ -84,31 +84,81 @@ def main() -> None:
         help="Catalogue filename under each prescription (NumPy or szifi_jax_splitA_immf_q5.npz)",
     )
     p.add_argument("--stem", default="szifi_homog_cnc_binned_Nq_qgt5_immf")
+    p.add_argument(
+        "--cats",
+        type=Path,
+        nargs="+",
+        default=None,
+        help="Explicit catalogue paths (overrides the four-prescription loop)",
+    )
+    p.add_argument(
+        "--labels",
+        nargs="+",
+        default=None,
+        help="Legend labels matching --cats (TeX ok). Default: path stems.",
+    )
     args = p.parse_args()
 
-    histograms = {p: bin_nq(catalogue_path(p, args.cat_name)) for p in PRESCRIPTIONS}
+    if args.cats is not None:
+        keys = list(args.labels) if args.labels else [p.stem for p in args.cats]
+        if len(keys) != len(args.cats):
+            raise SystemExit("--labels must match --cats")
+        series = [(k, Path(p)) for k, p in zip(keys, args.cats)]
+        overlay_colors = ["k", "#d62728", "#2ca02c", "#17becf"]
+        histograms = {k: bin_nq(p) for k, p in series}
+        print("SZiFi iMMF N(q), q>=5, bins:", Q_EDGES.tolist())
+        counts0 = None
+        for i, (k, path) in enumerate(series):
+            counts = histograms[k]
+            n = int(counts.sum())
+            ratio = ""
+            if i == 0:
+                counts0 = counts.astype(np.float64)
+            else:
+                r = counts.astype(np.float64) / np.maximum(counts0, 1.0)
+                ratio = f"  ratio vs first={np.array2string(r, precision=3)}"
+            print(f"{k}: N={n:,d}  N(q bins)={counts.tolist()}{ratio}  [{path}]")
+        plt.rcParams.update(PAPER_RC)
+        fig, ax = plt.subplots(figsize=(7.1, 4.4), layout="constrained")
+        n_series = len(series)
+        for index, (k, _) in enumerate(series):
+            counts = histograms[k]
+            left, widths = grouped_bar_geometry(Q_EDGES, index, n_series)
+            formatted = f"{int(counts.sum()):,d}".replace(",", "{,}")
+            ax.bar(
+                left,
+                counts,
+                width=widths,
+                align="edge",
+                color=overlay_colors[index % len(overlay_colors)],
+                alpha=1.0 if index == 0 else 0.72,
+                edgecolor="white",
+                linewidth=0.35,
+                label=rf"{k} ($N={formatted}$)",
+            )
+    else:
+        histograms = {p: bin_nq(catalogue_path(p, args.cat_name)) for p in PRESCRIPTIONS}
+        print("SZiFi iMMF N(q), q>=5, bins:", Q_EDGES.tolist())
+        for p in PRESCRIPTIONS:
+            n = int(histograms[p].sum())
+            print(f"{p}: N={n:,d}  N(q bins)={histograms[p].tolist()}")
 
-    print("SZiFi iMMF N(q), q>=5, bins:", Q_EDGES.tolist())
-    for p in PRESCRIPTIONS:
-        n = int(histograms[p].sum())
-        print(f"{p}: N={n:,d}  N(q bins)={histograms[p].tolist()}")
-
-    plt.rcParams.update(PAPER_RC)
-    fig, ax = plt.subplots(figsize=(7.1, 4.4), layout="constrained")
-    for index, prescription in enumerate(PRESCRIPTIONS):
-        counts = histograms[prescription]
-        left, widths = grouped_bar_geometry(Q_EDGES, index, len(PRESCRIPTIONS))
-        ax.bar(
-            left,
-            counts,
-            width=widths,
-            align="edge",
-            color=COLORS[prescription],
-            alpha=1.0 if prescription == "L1_m9" else 0.68,
-            edgecolor="white",
-            linewidth=0.35,
-            label=legend_label(prescription, int(counts.sum())),
-        )
+        plt.rcParams.update(PAPER_RC)
+        fig, ax = plt.subplots(figsize=(7.1, 4.4), layout="constrained")
+        for index, prescription in enumerate(PRESCRIPTIONS):
+            counts = histograms[prescription]
+            left, widths = grouped_bar_geometry(Q_EDGES, index, len(PRESCRIPTIONS))
+            ax.bar(
+                left,
+                counts,
+                width=widths,
+                align="edge",
+                color=COLORS[prescription],
+                alpha=1.0 if prescription == "L1_m9" else 0.68,
+                edgecolor="white",
+                linewidth=0.35,
+                label=legend_label(prescription, int(counts.sum())),
+            )
 
     ax.set_xscale("log")
     ax.set_xticks([5.0, 10.0, 20.0, 40.0], labels=[r"$5$", r"$10$", r"$20$", r"$40$"])

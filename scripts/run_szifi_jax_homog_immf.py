@@ -64,9 +64,10 @@ JAX_ONLY = {
 }
 
 
-def _jax_params(paths, field_ids, split="A", gpu_tile_batch=16):
+def _jax_params(paths, field_ids, split="A", gpu_tile_batch=16,
+                mmf_type="standard", deproject_cib=None):
     params_szifi, params_data, params_model = default_params(
-        paths, field_ids, split=split, mmf_type="standard", deproject_cib=None
+        paths, field_ids, split=split, mmf_type=mmf_type, deproject_cib=deproject_cib
     )
     params_szifi.update(JAX_ONLY)
     params_szifi["gpu_tile_batch"] = int(gpu_tile_batch)
@@ -80,9 +81,10 @@ def _jax_params(paths, field_ids, split="A", gpu_tile_batch=16):
 
 
 def run_mmf_jax(paths, field_ids, split="A", q_th_final=5.0, merge_radius_arcmin=10.0,
-                gpu_tile_batch=16):
+                gpu_tile_batch=16, mmf_type="standard", deproject_cib=None):
     params_szifi, params_data, params_model = _jax_params(
-        paths, field_ids, split=split, gpu_tile_batch=gpu_tile_batch
+        paths, field_ids, split=split, gpu_tile_batch=gpu_tile_batch,
+        mmf_type=mmf_type, deproject_cib=deproject_cib,
     )
     data = szifi_jax.input_data(params_szifi=params_szifi, params_data=params_data)
     cf = szifi_jax.cluster_finder(
@@ -256,15 +258,18 @@ def run_one(
     ref_cat: Path,
     skip_plot: bool,
     fig: Path,
+    mmf_type: str = "standard",
+    deproject_cib: list[str] | None = None,
 ) -> dict:
     paths = SZiFiPaths(out_root=out_root, kind="homog")
     ids = field_ids if field_ids is not None else select_all_tile_ids()
     out_dir = paths.catalogues_dir()
-    partial_dir = out_dir / f"partial_{tag}_splitA_immf"
+    method = "scimmf" if mmf_type == "spectrally_constrained" else "immf"
+    partial_dir = out_dir / f"partial_{tag}_splitA_{method}"
     partial_dir.mkdir(parents=True, exist_ok=True)
     print(
         f"tiles n={len(ids)} batch={batch_size}  GPU={os.environ['CUDA_VISIBLE_DEVICES']}  "
-        f"out_root={out_root}",
+        f"mmf={mmf_type}  out_root={out_root}",
         flush=True,
     )
     partials: list[Path] = []
@@ -279,14 +284,15 @@ def run_one(
             continue
         t0 = time.time()
         cat = run_mmf_jax(
-            paths, batch, q_th_final=q_th, gpu_tile_batch=batch_size
+            paths, batch, q_th_final=q_th, gpu_tile_batch=batch_size,
+            mmf_type=mmf_type, deproject_cib=deproject_cib,
         )
         n = len(cat.catalogue.get("q_opt", []))
         save_catalogue_npz(
             cat,
             part,
             meta={
-                "mmf": "immf",
+                "mmf": method,
                 "backend": "szifi_jax",
                 "batch": b,
                 "field_ids": list(batch),
@@ -307,8 +313,9 @@ def run_one(
         out,
         q_th_final=q_th,
         meta={
-            "mmf": "immf",
-            "mmf_type": "standard",
+            "mmf": method,
+            "mmf_type": mmf_type,
+            "deproject_cib": deproject_cib,
             "backend": "szifi_jax",
             "split": "A",
             "n_tiles": len(ids),
@@ -366,11 +373,24 @@ def main() -> None:
         help="Catalogue name tag (does not overwrite the original NumPy catalogue)",
     )
     p.add_argument("--ref", type=Path, default=None)
+    p.add_argument(
+        "--no-ref",
+        action="store_true",
+        help="Print N(q) vs --ref if given, but do not require ALL-cluster match",
+    )
     p.add_argument("--fig", type=Path, default=FIG_OUT)
     p.add_argument("--skip-plot", action="store_true")
+    p.add_argument(
+        "--mmf-type",
+        choices=("standard", "spectrally_constrained"),
+        default="standard",
+        help="standard iMMF or one-dep sciMMF (CIB deprojection)",
+    )
     args = p.parse_args()
 
     print(f"jax devices: {jax.devices()}", flush=True)
+    mmf_type = args.mmf_type
+    deproject_cib = ["cib"] if mmf_type == "spectrally_constrained" else None
 
     names = list(args.prescriptions) if args.prescriptions else (
         [args.prescription] if args.prescription else [None]
@@ -379,17 +399,23 @@ def main() -> None:
     for name in names:
         if name is None:
             out_root = args.out_root or DEFAULT_OUT_ROOT_HOMOG
-            tag = args.tag or "homog_immf_fullsky_szifi_jax"
+            tag = args.tag or (
+                "homog_scimmf_fullsky_szifi_jax"
+                if mmf_type == "spectrally_constrained"
+                else "homog_immf_fullsky_szifi_jax"
+            )
             ref = args.ref or numpy_ref_cat(out_root)
             if not ref.is_file():
                 ref = REF_CAT
             skip_plot = args.skip_plot
         else:
             out_root = HOMOG_ROOT / name
-            tag = args.tag or "szifi_jax"
+            tag = args.tag or (
+                "szifi_jax_scimmf" if mmf_type == "spectrally_constrained" else "szifi_jax"
+            )
             ref = args.ref or numpy_ref_cat(out_root)
             skip_plot = True
-        print(f"=== {name or 'homog'}  ref={ref} ===", flush=True)
+        print(f"=== {name or 'homog'}  mmf={mmf_type}  ref={ref} ===", flush=True)
         result = run_one(
             out_root=out_root,
             field_ids=args.field_ids,
@@ -399,9 +425,22 @@ def main() -> None:
             ref_cat=ref,
             skip_plot=skip_plot,
             fig=args.fig,
+            mmf_type=mmf_type,
+            deproject_cib=deproject_cib,
         )
         stats = result["stats"]
         fullsky = args.field_ids is None
+        if args.no_ref:
+            if stats is None:
+                print("INFO: --no-ref and no catalogue to compare", flush=True)
+            else:
+                print(
+                    "INFO: --no-ref (not requiring ALL-cluster match)  "
+                    f"N jax={stats['n_jax']} ref={stats['n_ref']}  "
+                    f"N(q) jax={stats['nq_jax']} ref={stats['nq_ref']}",
+                    flush=True,
+                )
+            continue
         if stats is None:
             print("WARNING: no reference catalogue; cannot test ALL-cluster match", flush=True)
             failed.append(name or "homog")
