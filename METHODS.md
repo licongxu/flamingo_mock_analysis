@@ -276,8 +276,9 @@ This is the *q* behind the FLAMINGO numbers currently in the paper
 
 ## 6. Validation against truth (completeness / purity)
 
-`src/flamingo_mock/szifi/validate.py`, `scripts/benchmark_szifi_catalogue.py`,
-`scripts/benchmark_szifi_completeness_szifi.py`, `src/flamingo_mock/szifi/true_snr.py`.
+`src/flamingo_mock/szifi/validate.py` (`flamingo-szifi benchmark`),
+`scripts/benchmark_szifi_completeness_szifi.py`, `src/flamingo_mock/szifi/true_snr.py`
+(`flamingo-szifi true-snr`).
 
 - Cross-match: **greedy, one-to-one, highest-*q* detection first**, association radius
   **10 arcmin** (`validate.py:142-184`; documented as following Zubeldia et al. 2024 §3.4.1/§4.1).

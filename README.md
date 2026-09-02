@@ -88,7 +88,7 @@ scripts/       one-off drivers; names are the grouping
                L1_m9 component + total-map making
   run_hilc.py / plot_hilc_* / configs/hilc_y_flamingo_homog*.yml
                homog HILC y-maps (pyILC on needlet_ilc)
-  run_szifi_* / plot_szifi_* / benchmark_szifi_* / backfill_*
+  run_szifi_* / plot_szifi_* / flamingo-szifi {run,benchmark,true-snr}
                SZiFi catalogues, N(q), purity, zooms
   compute_* / plot_l1_m9_*
                MMF noise curves, SOAP photometry, feedback ratios

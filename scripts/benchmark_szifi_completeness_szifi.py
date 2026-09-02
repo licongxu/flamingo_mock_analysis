@@ -67,7 +67,7 @@ def main() -> None:
     if not args.true_snr.is_file():
         raise SystemExit(
             f"Missing true-SNR catalogue: {args.true_snr}\n"
-            "Run: python scripts/extract_true_snr_fixed.py"
+            "Run: flamingo-szifi true-snr"
         )
 
     paths = SZiFiPaths()
