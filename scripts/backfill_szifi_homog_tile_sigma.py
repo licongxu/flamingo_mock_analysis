@@ -25,7 +25,6 @@ def main() -> None:
             "--kind",
             "homog",
             "--iterative",
-            "--runner-cache",
             "--no-plot",
             "--full-sky",
             "--n-workers",

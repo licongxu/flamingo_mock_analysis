@@ -239,11 +239,12 @@ figure `figures/szifi_homog_cnc_binned_Nq_qgt5_immf.{png,pdf}`.
   radial grid *x* ∈ [0, 5] with 201 radii × 180 azimuths, cubic polynomial in log θ₅₀₀
   (`compute_mmf_W_yt_skyavg.py:29-37`) →
   `szifi/catalogues/mmf_aperture/W_theta_yt_skyavg_25pt.npz`.
-- σ_{*y*₀} is **also saved per tile during every MMF run**
+- σ_{*y*₀} is **also saved per tile during every MMF run**, on that run's search-scale grid
   (`run.py:165 save_per_tile_sigma` → `catalogues/sigma_per_tile_immf_splitA/field_{id}.npy`,
-  plus `field_{id}_noit.npy` for the non-iterated covariance), and backfilled for all four
-  prescriptions by `scripts/backfill_szifi_homog_tile_sigma.py` (`--iterative --runner-cache
-  --full-sky`).
+  plus `field_{id}_noit.npy` for the non-iterated covariance). The separate 25-point analysis
+  curves are backfilled for all four prescriptions into
+  `sigma_per_tile_flamingo_immf_it_splitA/` by
+  `scripts/backfill_szifi_homog_tile_sigma.py`; the two grids are never mixed.
 
 ---
 

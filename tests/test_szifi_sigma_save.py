@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from flamingo_mock.szifi.paths import SZiFiPaths
 from flamingo_mock.szifi.run import save_per_tile_sigma, sigma_per_tile_dir
@@ -33,3 +34,9 @@ def test_save_per_tile_sigma_writes_find1_and_noit(tmp_path):
     assert np.allclose(np.load(tmp_path / "field_3_noit.npy"), [0.1, 0.2, 0.3])
     assert np.allclose(np.load(tmp_path / "field_7.npy"), [0.4, 0.5, 0.6])
     assert np.allclose(np.load(tmp_path / "field_7_noit.npy"), [0.4, 0.5, 0.6])
+
+
+def test_save_per_tile_sigma_rejects_mixed_theta_grids(tmp_path):
+    np.save(tmp_path / "theta_500_arcmin.npy", np.array([1.0, 2.0]))
+    with pytest.raises(ValueError, match="theta grid"):
+        save_per_tile_sigma({}, np.array([1.0, 2.0, 3.0]), tmp_path)

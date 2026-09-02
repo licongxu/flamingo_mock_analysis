@@ -171,8 +171,13 @@ def save_per_tile_sigma(
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     theta_path = cache_dir / "theta_500_arcmin.npy"
-    if not theta_path.is_file():
-        np.save(theta_path, np.asarray(theta_500_arcmin, dtype=np.float64))
+    theta = np.asarray(theta_500_arcmin, dtype=np.float64)
+    if theta_path.is_file():
+        cached_theta = np.load(theta_path)
+        if cached_theta.shape != theta.shape or not np.allclose(cached_theta, theta):
+            raise ValueError(f"theta grid does not match existing cache: {theta_path}")
+    else:
+        np.save(theta_path, theta)
 
     n_written = 0
     for field_id, res in results_dict.items():

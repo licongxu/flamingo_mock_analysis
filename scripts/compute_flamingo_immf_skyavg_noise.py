@@ -33,12 +33,7 @@ from flamingo_mock.szifi.paths import (  # noqa: E402
     SZiFiPaths,
     TILE_NX,
 )
-from flamingo_mock.szifi.run import (  # noqa: E402
-    default_params,
-    half_machine_pool_limits,
-    save_per_tile_sigma,
-    sigma_per_tile_dir,
-)
+from flamingo_mock.szifi.run import default_params, half_machine_pool_limits  # noqa: E402
 from flamingo_mock.szifi.tiles import select_all_tile_ids, select_footprint_tile_ids  # noqa: E402
 
 THETA_MIN = 0.5
@@ -164,11 +159,8 @@ def _sigma_vec_one_tile(payload: dict) -> tuple[int, np.ndarray]:
             ],
             dtype=np.float64,
         )
-        if payload.get("use_runner_cache"):
-            save_per_tile_sigma(cf.results_dict, theta_vec, Path(payload["cache_dir"]))
-        else:
-            ckpt.parent.mkdir(parents=True, exist_ok=True)
-            np.save(ckpt, sigma)
+        ckpt.parent.mkdir(parents=True, exist_ok=True)
+        np.save(ckpt, sigma)
         if hasattr(cf, "inv_cov") and cf.inv_cov is not None and hasattr(cf, "cspec"):
             try:
                 _save_mmf_intermediates(
@@ -279,33 +271,25 @@ def compute_per_tile(
     threads_per_worker: int = 2,
     overwrite: bool = False,
     iterative: bool = False,
-    use_runner_cache: bool = False,
 ) -> dict[int, np.ndarray]:
-    if use_runner_cache and iterative:
-        cache_dir = sigma_per_tile_dir(paths, method="immf", split=split)
-    else:
-        tag = f"flamingo_immf{'_it' if iterative else ''}_split{split}"
-        cache_dir = paths.catalogues_dir() / f"sigma_per_tile_{tag}"
+    tag = f"flamingo_immf{'_it' if iterative else ''}_split{split}"
+    cache_dir = paths.catalogues_dir() / f"sigma_per_tile_{tag}"
     cache_dir.mkdir(parents=True, exist_ok=True)
     theta_vec = theta_grid()
     workers, threads = half_machine_pool_limits(
         n_workers, threads_per_worker=threads_per_worker
     )
 
-    def _tile_done(fid: int) -> bool:
-        primary = cache_dir / f"field_{int(fid)}.npy"
-        if use_runner_cache and iterative:
-            return primary.is_file()
-        return _tile_ckpt_path(cache_dir, fid).is_file()
-
-    todo = [fid for fid in field_ids if overwrite or not _tile_done(fid)]
-    done = {}
-    for fid in field_ids:
-        if fid in todo:
-            continue
-        primary = cache_dir / f"field_{int(fid)}.npy"
-        path = primary if primary.is_file() else _tile_ckpt_path(cache_dir, fid)
-        done[fid] = np.load(path)
+    todo = [
+        fid
+        for fid in field_ids
+        if overwrite or not _tile_ckpt_path(cache_dir, fid).is_file()
+    ]
+    done = {
+        fid: np.load(_tile_ckpt_path(cache_dir, fid))
+        for fid in field_ids
+        if fid not in todo
+    }
     print(
         f"tiles: total={len(field_ids)} cached={len(done)} todo={len(todo)} "
         f"workers={workers} threads/worker={threads} "
@@ -326,7 +310,6 @@ def compute_per_tile(
                 "threads": threads,
                 "overwrite": overwrite,
                 "iterative": iterative,
-                "use_runner_cache": use_runner_cache,
             }
             for fid in todo
         ]
@@ -465,11 +448,6 @@ def main() -> None:
     p.add_argument("--plot-only", action="store_true")
     p.add_argument("--no-plot", action="store_true")
     p.add_argument(
-        "--runner-cache",
-        action="store_true",
-        help="use sigma_per_tile_immf_split{split}/ like flamingo_mock.szifi.run",
-    )
-    p.add_argument(
         "--fig",
         type=Path,
         default=None,
@@ -507,34 +485,19 @@ def main() -> None:
             threads_per_worker=args.threads_per_worker,
             overwrite=args.overwrite,
             iterative=args.iterative,
-            use_runner_cache=args.runner_cache,
         )
-        if args.runner_cache and args.iterative:
-            tag = f"immf_split{args.split}"
-            cache_dir = sigma_per_tile_dir(paths, method="immf", split=args.split)
-            per_tile = {
-                int(p.stem.split("_")[1]): np.load(p)
-                for p in sorted(cache_dir.glob("field_*.npy"))
-                if "_noit" not in p.stem
-            }
-        else:
-            tag = f"flamingo_immf{'_it' if args.iterative else ''}_split{args.split}"
+        tag = f"flamingo_immf{'_it' if args.iterative else ''}_split{args.split}"
         np.savez_compressed(
             paths.catalogues_dir() / f"sigma_per_tile_{tag}.npz",
             theta_500_arcmin=theta,
             **{f"field_{k}": v for k, v in per_tile.items()},
         )
     else:
-        if args.runner_cache and args.iterative:
-            tag = f"immf_split{args.split}"
-            cache_dir = sigma_per_tile_dir(paths, method="immf", split=args.split)
-        else:
-            tag = f"flamingo_immf{'_it' if args.iterative else ''}_split{args.split}"
-            cache_dir = paths.catalogues_dir() / f"sigma_per_tile_{tag}"
+        tag = f"flamingo_immf{'_it' if args.iterative else ''}_split{args.split}"
+        cache_dir = paths.catalogues_dir() / f"sigma_per_tile_{tag}"
         per_tile = {
             int(p.stem.split("_")[1]): np.load(p)
             for p in sorted(cache_dir.glob("field_*.npy"))
-            if "_noit" not in p.stem
         }
 
     sigma_mock = sky_average(per_tile, equal_weight=full_sky)
