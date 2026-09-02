@@ -109,3 +109,134 @@ def test_ilc_bias_fraction_decreases_with_deprojection():
     assert f3 < f0
     # Fully constrained: N_freq = 1 + N_deproj ⇒ bias vanishes.
     assert ilc_bias_fraction(5, 6, n_modes)[0] == 0.0
+
+
+def test_cross_experimental_error_grows_with_noise():
+    """Var_exp = (C11 C22 − C12²)/N_modes is the piece beyond tSZ cosmic variance."""
+    c_s, n = 1.0, 3.0
+    cl_auto = np.full(20, c_s + n)
+    cl_cross = np.full(20, c_s)
+    ell_min, ell_max = np.array([5]), np.array([10])
+    sig_tot = sigma_dl_cross_binned(cl_auto, cl_auto, cl_cross, ell_min, ell_max)[0]
+    sig_cv = sigma_dl_cross_binned(cl_cross, cl_cross, cl_cross, ell_min, ell_max)[0]
+    assert sig_tot > sig_cv
+    sig_exp = np.sqrt(sig_tot**2 - sig_cv**2)
+    cl_loud = np.full(20, c_s + 10.0)
+    sig_loud = sigma_dl_cross_binned(cl_loud, cl_loud, cl_cross, ell_min, ell_max)[0]
+    sig_loud_exp = np.sqrt(sig_loud**2 - sig_cv**2)
+    assert sig_loud_exp > sig_exp
+
+
+def test_hilc_plot_scripts_use_l1_m9_not_test():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "scripts"
+    files = (
+        "plot_hilc_homog_r1xr2_split_diagnostics.py",
+        "plot_hilc_homog_auto_fig9.py",
+        "plot_hilc_homog_q5masked.py",
+        "plot_hilc_homog_pyilc_convention.py",
+    )
+    for name in files:
+        src = (root / name).read_text()
+        assert "components/tsz/L1_m9" in src, name
+        assert "components/tsz/test" not in src, name
+        if "CIB_DIR" in src:
+            assert "components/cib/L1_m9" in src, name
+            assert "components/cib/test" not in src, name
+
+
+def test_q5masked_r1xr2_fig9_writes_unbinned_yy_cache():
+    """Ratio ILC errors read cl_11/22/12 from this cache; residuals-only npz is not enough."""
+    from pathlib import Path
+
+    src = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "plot_hilc_homog_q5masked_r1xr2_fig9.py"
+    ).read_text()
+    assert "np.savez" in src
+    assert "case.cl_cache" in src
+    assert 'cl_11=stored["cl_11"]' in src
+
+
+def test_joint_fisher_matches_x_matrix_inverse():
+    """σ(A_tSZ) = sqrt((Σ_A)_{tt}) for Σ_A = (X^T M^{-1} X)^{-1}, X = (t | f)."""
+    import importlib.util
+    from pathlib import Path
+
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "plot_l1_m9_feedback_ratio_ilc_errors.py"
+    )
+    spec = importlib.util.spec_from_file_location("ilc_ratio_err", script)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t = np.array([1.0, 2.0, 0.5, 1.5])
+    f = np.array([0.3, 0.8, 1.1, 0.2])
+    m = np.diag([1.0, 2.0, 0.5, 1.2])
+    j = mod.joint_fisher(t, f, m)
+    x = np.column_stack((t, f))
+    cov = np.linalg.inv(x.T @ np.linalg.solve(m, x))
+    schur = 1.0 / (
+        t @ np.linalg.solve(m, t)
+        - (t @ np.linalg.solve(m, f)) ** 2 / (f @ np.linalg.solve(m, f))
+    )
+    assert np.allclose(j["cov_A"], cov)
+    assert np.isclose(j["sig_yy"] ** 2, cov[0, 0])
+    assert np.isclose(j["sig_yy"] ** 2, schur)
+    assert np.isclose(j["sig_A"] ** 2, cov[1, 1])
+
+
+def test_joint_fisher_orthogonal_templates_no_inflate():
+    """d = A t + B f with M=I: orthogonal templates leave σ_A = 1/||f||."""
+    import importlib.util
+    from pathlib import Path
+
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "plot_l1_m9_feedback_ratio_ilc_errors.py"
+    )
+    spec = importlib.util.spec_from_file_location("ilc_ratio_err", script)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t = np.ones(4)
+    f = np.array([1.0, -1.0, 1.0, -1.0])
+    j = mod.joint_fisher(t, f, np.eye(4))
+    assert abs(j["cos"]) < 1e-12
+    assert np.isclose(j["sig_A"], 0.5)
+    assert np.isclose(j["inflate"], 1.0)
+    j_par = mod.joint_fisher(t, t, np.eye(4))
+    assert j_par["inflate"] > 1e3
+
+
+def test_joint_model_band_keeps_amplitude_cross_covariance():
+    import importlib.util
+    from pathlib import Path
+
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "plot_l1_m9_feedback_ratio_ilc_errors.py"
+    )
+    spec = importlib.util.spec_from_file_location("ilc_ratio_err", script)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t = np.array([1.0, 2.0, 0.5, 1.5])
+    f = np.array([0.3, 0.8, 1.1, 0.2])
+    j = mod.joint_fisher(t, f, np.diag([1.0, 2.0, 0.5, 1.2]))
+    lo, hi = mod._joint_model_lohi(j, t)
+    response = np.column_stack((np.ones_like(t), f / t))
+    expected = np.sqrt(np.diag(response @ j["cov_A"] @ response.T))
+    without_cross = np.sqrt(j["sig_yy"] ** 2 + (j["sig_A"] * f / t) ** 2)
+
+    assert np.allclose((hi - lo) / 2.0, expected)
+    assert not np.allclose(expected, without_cross)

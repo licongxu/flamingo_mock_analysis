@@ -1,6 +1,8 @@
 .env
 maps_100_143_353/
 .claude/
+.qwen/
+logs/
 *.egg-info/
 __pycache__/
 

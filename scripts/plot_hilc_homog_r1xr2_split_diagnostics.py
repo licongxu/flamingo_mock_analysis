@@ -43,12 +43,9 @@ ELL_EFF = np.array(
 ELL_PLOT_MAX = 3000
 
 ILC = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc")
-TRUTH = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/test"
-    "/compton_y_nside4096.fits"
-)
-TSZ_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/test")
-CIB_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/cib/test")
+TSZ_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/L1_m9")
+CIB_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/cib/L1_m9")
+TRUTH = TSZ_DIR / "compton_y_nside4096.fits"
 CMB_MAP = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/cmb"
     "/primary_CMB_T_lensed_nside4096_seed42.fits"

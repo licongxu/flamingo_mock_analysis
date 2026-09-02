@@ -144,6 +144,58 @@ def default_params(
     return params_szifi, params_data, params_model
 
 
+def _method_tag(mmf_type: str, method: str | None = None) -> str:
+    if method is not None:
+        return str(method)
+    if mmf_type == "spectrally_constrained":
+        return "scimmf"
+    return "immf"
+
+
+def sigma_per_tile_dir(
+    paths: SZiFiPaths,
+    *,
+    method: str = "immf",
+    split: str = "A",
+) -> Path:
+    """Directory for per-tile sigma_y0(theta) arrays written during MMF runs."""
+    return paths.catalogues_dir() / f"sigma_per_tile_{method}_split{split}"
+
+
+def save_per_tile_sigma(
+    results_dict: dict,
+    theta_500_arcmin,
+    cache_dir: Path,
+) -> int:
+    """Persist iterative and non-iterative per-tile MMF noise curves."""
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    theta_path = cache_dir / "theta_500_arcmin.npy"
+    theta = np.asarray(theta_500_arcmin, dtype=np.float64)
+    if theta_path.is_file():
+        cached_theta = np.load(theta_path)
+        if cached_theta.shape != theta.shape or not np.allclose(cached_theta, theta):
+            raise ValueError(f"theta grid does not match existing cache: {theta_path}")
+    else:
+        np.save(theta_path, theta)
+
+    n_written = 0
+    for field_id, res in results_dict.items():
+        sigma_vec = getattr(res, "sigma_vec", None) or {}
+        fid = int(field_id)
+        if "find_0" in sigma_vec:
+            np.save(
+                cache_dir / f"field_{fid}_noit.npy",
+                np.asarray(sigma_vec["find_0"], dtype=np.float64),
+            )
+        primary = sigma_vec.get("find_1", sigma_vec.get("find_0"))
+        if primary is None:
+            continue
+        np.save(cache_dir / f"field_{fid}.npy", np.asarray(primary, dtype=np.float64))
+        n_written += 1
+    return n_written
+
+
 def run_mmf(
     paths: SZiFiPaths,
     field_ids: list[int],
@@ -154,6 +206,8 @@ def run_mmf(
     q_th_final: float = 5.0,
     merge_radius_arcmin: float = 10.0,
     compute_coupling_matrix: bool = True,
+    method: str | None = None,
+    save_sigma: bool = True,
 ) -> szifi.cat.cluster_catalogue:
     """Run SZiFi on prepared tiles; return merged catalogue with q >= q_th_final."""
     params_szifi, params_data, params_model = default_params(
@@ -175,6 +229,15 @@ def run_mmf(
     cluster_finder.find_clusters()
 
     results = cluster_finder.results_dict
+    if save_sigma:
+        cache = sigma_per_tile_dir(
+            paths, method=_method_tag(mmf_type, method), split=split
+        )
+        n_sig = save_per_tile_sigma(
+            results, params_szifi["theta_500_vec_arcmin"], cache
+        )
+        print(f"  saved per-tile sigma_y0 for {n_sig} tiles -> {cache}", flush=True)
+
     detection_processor = szifi.detection_processor(results, params_szifi)
 
     # Iterative catalogue when iterative=True (catalogue_find_1); else find_0.
@@ -259,6 +322,7 @@ def run_imf_and_scimmf(
             mmf_type=mmf_type,
             deproject_cib=deproj,
             q_th_final=q_th_final,
+            method=name,
         )
         n = len(cat.catalogue.get("q_opt", []))
         print(f"  {name}: {n} detections with q>={q_th_final}")
@@ -472,6 +536,7 @@ def _run_one_batch_job(args: tuple) -> tuple[str, int, int, int]:
         mmf_type=mmf_type,
         deproject_cib=deproj,
         q_th_final=q_th_final,
+        method=method,
     )
     n = len(cat.catalogue.get("q_opt", []))
     save_catalogue_npz(

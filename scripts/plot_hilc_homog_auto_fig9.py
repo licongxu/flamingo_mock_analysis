@@ -64,7 +64,7 @@ ILC = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc")
 FIG_DIR = Path("/scratch/scratch-lxu/flamingo_mock_analysis/figures")
 CL_CACHE = ILC / "hilc_output_homog" / "hilc_homog_auto_fig9_cl.npz"
 TRUTH = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/test"
+    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/L1_m9"
     "/compton_y_nside4096.fits"
 )
 YLIM = (1.0e-17, 3.0e-9)

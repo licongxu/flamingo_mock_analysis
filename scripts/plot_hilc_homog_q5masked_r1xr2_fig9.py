@@ -24,7 +24,7 @@ from flamingo_mock.powerspectra import (
     sigma_dl_cross_binned,
 )
 
-ROOT = Path("/scratch/scratch-lxu/flamingo_mock_analysis")
+ROOT = Path(__file__).resolve().parents[1]
 _DIAG = ROOT / "scripts" / "plot_hilc_homog_r1xr2_split_diagnostics.py"
 _spec = importlib.util.spec_from_file_location("hilc_r1xr2_diag", _DIAG)
 diag = importlib.util.module_from_spec(_spec)
@@ -40,7 +40,7 @@ ELL_PLOT_MAX = diag.ELL_PLOT_MAX
 ELL_MIN = diag.ELL_MIN
 ELL_MAX = diag.ELL_MAX
 ELL_EFF = diag.ELL_EFF
-FIG_DIR = diag.FIG_DIR
+FIG_DIR = ROOT / "figures"
 ILC = diag.ILC
 YLIM = (1.0e-17, 3.0e-9)
 MASK_APO = ILC / "szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
@@ -74,8 +74,8 @@ CASES = (
         / "flamingo_needletILCmap_component_tSZ_hilc_y_homog_q5masked_r2.fits",
         ILC / "hilc_output_homog_q5masked",
         ILC / "hilc_output_homog_q5masked_r2",
-        ILC / "hilc_output_homog_q5masked_r2" / "hilc_homog_q5masked_r1xr2_cl_unbinned.npz",
-        ILC / "hilc_output_homog_q5masked_r2" / "hilc_homog_q5masked_r1xr2_fig9_cl.npz",
+        ILC / "hilc_output_homog_q5masked_r2" / "hilc_homog_q5masked_r1xr2_cl_unbinned_l1_m9.npz",
+        ILC / "hilc_output_homog_q5masked_r2" / "hilc_homog_q5masked_r1xr2_fig9_cl_l1_m9.npz",
     ),
     Case(
         "CIB deprojection",
@@ -87,9 +87,9 @@ CASES = (
         ILC / "hilc_output_homog_q5masked_deproj_CIB",
         ILC / "hilc_output_homog_q5masked_r2_deproj_CIB",
         ILC / "hilc_output_homog_q5masked_r2_deproj_CIB"
-        / "hilc_homog_q5masked_deproj_cib_r1xr2_cl_unbinned.npz",
+        / "hilc_homog_q5masked_deproj_cib_r1xr2_cl_unbinned_l1_m9.npz",
         ILC / "hilc_output_homog_q5masked_r2_deproj_CIB"
-        / "hilc_homog_q5masked_deproj_cib_fig9_cl.npz",
+        / "hilc_homog_q5masked_deproj_cib_fig9_cl_l1_m9.npz",
     ),
     Case(
         r"CIB + $\delta\beta$ + $\delta T$",
@@ -103,9 +103,9 @@ CASES = (
         ILC / "hilc_output_homog_q5masked_deproj_CIB_CIB_dbeta_CIB_dT",
         ILC / "hilc_output_homog_q5masked_r2_deproj_CIB_CIB_dbeta_CIB_dT",
         ILC / "hilc_output_homog_q5masked_r2_deproj_CIB_CIB_dbeta_CIB_dT"
-        / "hilc_homog_q5masked_deproj_cib_moments_r1xr2_cl_unbinned.npz",
+        / "hilc_homog_q5masked_deproj_cib_moments_r1xr2_cl_unbinned_l1_m9.npz",
         ILC / "hilc_output_homog_q5masked_r2_deproj_CIB_CIB_dbeta_CIB_dT"
-        / "hilc_homog_q5masked_deproj_cib_moments_fig9_cl.npz",
+        / "hilc_homog_q5masked_deproj_cib_moments_fig9_cl_l1_m9.npz",
     ),
 )
 
@@ -147,6 +147,15 @@ def load_or_compute(case: Case, bl, good, w_apo: np.ndarray, fsky: float) -> dic
         stored["cl_22"] = masked_cl(y2, y2, w_apo, LMAX)
         stored["cl_12"] = masked_cl(y1, y2, w_apo, LMAX)
         stored["cl_tt"] = masked_cl(yt, yt, w_apo, LMAX)
+        case.cl_cache.parent.mkdir(parents=True, exist_ok=True)
+        np.savez(
+            case.cl_cache,
+            cl_11=stored["cl_11"],
+            cl_22=stored["cl_22"],
+            cl_12=stored["cl_12"],
+            cl_tt=stored["cl_tt"],
+        )
+        print("wrote", case.cl_cache)
 
     need_res = any(k not in stored for k in ("cl_cib_w", "cl_cmb_w", "cl_n_w"))
     if need_res:

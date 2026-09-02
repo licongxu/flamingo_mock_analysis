@@ -32,11 +32,11 @@ YMAP = Path(
     "/flamingo_needletILCmap_component_tSZ_hilc_y_homog_fullsky.fits"
 )
 TRUTH = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/test"
+    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/L1_m9"
     "/compton_y_nside4096.fits"
 )
 WDIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog")
-CIB_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/cib/test")
+CIB_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/cib/L1_m9")
 SED_YML = "/scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml"
 FIG_DIR = Path("/scratch/scratch-lxu/flamingo_mock_analysis/figures")
 
