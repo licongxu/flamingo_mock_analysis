@@ -24,7 +24,7 @@ def run_one(cfg: Path) -> None:
     from flamingo_mock.ilc.run import run_ilc
 
     t0 = time.time()
-    ypath = run_ilc(cfg, backend=os.environ.get("PYILC_BACKEND", "jax"))
+    ypath = run_ilc(cfg, backend=os.environ.get("PYILC_BACKEND", "jax"), overwrite=True)
     print(f"[driver] y_map={ypath}  elapsed={time.time()-t0:.1f}s")
     y = np.asarray(__import__("healpy").read_map(str(ypath), dtype=np.float64))
     print(f"[driver] y rms={float(y.std()):.4g}  nside={__import__('healpy').get_nside(y)}")

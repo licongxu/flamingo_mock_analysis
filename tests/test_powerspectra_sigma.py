@@ -215,3 +215,28 @@ def test_joint_fisher_orthogonal_templates_no_inflate():
     j_par = mod.joint_fisher(t, t, np.eye(4))
     assert j_par["inflate"] > 1e3
 
+
+def test_joint_model_band_keeps_amplitude_cross_covariance():
+    import importlib.util
+    from pathlib import Path
+
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "plot_l1_m9_feedback_ratio_ilc_errors.py"
+    )
+    spec = importlib.util.spec_from_file_location("ilc_ratio_err", script)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t = np.array([1.0, 2.0, 0.5, 1.5])
+    f = np.array([0.3, 0.8, 1.1, 0.2])
+    j = mod.joint_fisher(t, f, np.diag([1.0, 2.0, 0.5, 1.2]))
+    lo, hi = mod._joint_model_lohi(j, t)
+    response = np.column_stack((np.ones_like(t), f / t))
+    expected = np.sqrt(np.diag(response @ j["cov_A"] @ response.T))
+    without_cross = np.sqrt(j["sig_yy"] ** 2 + (j["sig_A"] * f / t) ** 2)
+
+    assert np.allclose((hi - lo) / 2.0, expected)
+    assert not np.allclose(expected, without_cross)

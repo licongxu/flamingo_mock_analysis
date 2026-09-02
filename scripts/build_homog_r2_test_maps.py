@@ -6,8 +6,9 @@ Same pixel-white recipe as notebooks/homogeneous_planck_white_noise.ipynb
 
   total_r2 = total_r1 - noise_r1 + noise_r2
 
-and are written next to the r1 L1_m9 maps (no overwrite). pyILC K_CMB copies
-go to ilc/inputs_nside2048_homog_r2/ (the path every homog r2 HILC config reads).
+and are written next to the r1 L1_m9 maps (no overwrite of the uK r1 totals).
+pyILC K_CMB copies: r1 -> ilc/inputs_nside2048_homog/ (overwrites the old L2p8
+test-sky copies); r2 -> ilc/inputs_nside2048_homog_r2/.
 Does not touch total_maps/test/ (L2p8 demo).
 """
 from __future__ import annotations
@@ -42,6 +43,7 @@ NELL = {
 
 NOISE = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/planck_noise/homogeneous")
 TOTAL_R1 = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/total_maps/L1_m9")
+ILC_K_R1 = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog")
 ILC_K = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2")
 
 OMEGA_ARCMIN2 = hp.nside2pixarea(NSIDE, degrees=True) * 3600.0
@@ -54,8 +56,10 @@ def load_uK(path: Path) -> np.ndarray:
 
 
 def main() -> None:
+    ILC_K_R1.mkdir(parents=True, exist_ok=True)
     ILC_K.mkdir(parents=True, exist_ok=True)
     print(f"seed_r2={SEED_R2}  nside={NSIDE}  Omega={OMEGA_ARCMIN2:.4f} arcmin^2")
+    print(f"r1 K maps <- {TOTAL_R1}  (overwrite test-sky copies)")
 
     for nu in FREQS:
         sigma_pix = UK_ARCMIN[nu] / np.sqrt(OMEGA_ARCMIN2)
@@ -90,6 +94,19 @@ def main() -> None:
             f"{nu:5d}  sig_pix={sigma_pix:8.3f}  rms_n1={noise_r1.std():8.3f}  "
             f"rms_n2={noise_r2.std():8.3f}  corr(n1,n2)={corr:+.4f}  "
             f"rms_tot2={total_r2.std():8.3f}"
+        )
+        dest_k1 = ILC_K_R1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_K.fits"
+        write_map(
+            dest_k1,
+            total_r1 * 1e-6,
+            unit="K_CMB",
+            freq=float(nu),
+            extra=[
+                ("COMPS", "CMB+tSZ+CIB+homog_noise"),
+                ("FROMUK", str(TOTAL_R1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK.fits")),
+                ("REAL", 1),
+            ],
+            dtype=np.float32,
         )
         dest_t = TOTAL_R1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK_r2.fits"
         write_map(
