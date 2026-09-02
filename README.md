@@ -81,4 +81,17 @@ src/flamingo_mock/
   sky.py       optional coadd helper (not used in default workflow)
   powerspectra.py  anafast-based C_ell estimators, binning, decorrelation
   cli.py       flamingo-mock-maps entry point
+  szifi/       iMMF / sciMMF cluster finding (flamingo-szifi)
+
+scripts/       one-off drivers; names are the grouping
+  build_l1_* / download_* / make_lensed_* / check_l1_*
+               L1_m9 component + total-map making
+  run_hilc.py / plot_hilc_* / configs/hilc_y_flamingo_homog*.yml
+               homog HILC y-maps (pyILC on needlet_ilc)
+  run_szifi_* / plot_szifi_* / benchmark_szifi_* / backfill_*
+               SZiFi catalogues, N(q), purity, zooms
+  compute_* / plot_l1_m9_*
+               MMF noise curves, SOAP photometry, feedback ratios
+  regenerate_* / pub_style.py
+               paper figures
 ```
