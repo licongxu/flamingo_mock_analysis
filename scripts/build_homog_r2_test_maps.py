@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Independent homogeneous white-noise realisation (r2) on the L2p8 test skies.
+"""Independent homogeneous white-noise realisation (r2) on the fiducial L1_m9 skies.
 
 Same pixel-white recipe as notebooks/homogeneous_planck_white_noise.ipynb
-(SEED=1042 instead of 42). Observation maps keep the r1 beamed signal:
+(SEED=1042 instead of 42). Observation maps keep the r1 beamed L1_m9 signal:
 
   total_r2 = total_r1 - noise_r1 + noise_r2
 
-and are written next to the r1 test maps (no overwrite). pyILC K_CMB copies
-go to ilc/inputs_nside2048_homog_r2/.
+and are written next to the r1 L1_m9 maps (no overwrite). pyILC K_CMB copies
+go to ilc/inputs_nside2048_homog_r2/ (the path every homog r2 HILC config reads).
+Does not touch total_maps/test/ (L2p8 demo).
 """
 from __future__ import annotations
 
@@ -40,7 +41,7 @@ NELL = {
 }
 
 NOISE = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/planck_noise/homogeneous")
-TOTAL_R1 = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/total_maps/test")
+TOTAL_R1 = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/total_maps/L1_m9")
 ILC_K = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2")
 
 OMEGA_ARCMIN2 = hp.nside2pixarea(NSIDE, degrees=True) * 3600.0

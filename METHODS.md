@@ -61,7 +61,7 @@ T_ν = B_ν ⊛ ( CMB + ΔT_ν^tSZ + ΔT_ν^CIB ) + noise_ν ,      ν ∈ {100 
   (`build_l1_prescription_totals.py:115`, path pattern in `szifi/paths.py:94-103`).
 - Prescriptions kept side by side: **`L1_m9`** (fiducial hydro, D3A), `fgas-8sigma`,
   `Mstar-1sigma`, `LS8` (`build_l1_prescription_totals.py:24`). `total_maps/test/` is the old
-  L2p8 demo, unused.
+  L2p8 demo, unused (r2 HILC inputs are rebuilt from `total_maps/L1_m9`, not from `test/`).
 - Default homog roots: total maps `total_maps/L1_m9`, outputs `szifi_homog`
   (`szifi/paths.py:32-37`).
 
@@ -352,9 +352,9 @@ Implementation: **pyILC** (harmonic needlet ILC, McCarthy & Hill 2024), package 
 | `work_in_healpix` | yes | HEALPix, not CAR |
 
 Input maps: `ilc/inputs_nside2048_homog/sky_CMB_tSZ_CIB_homog_{ν}GHz_nside2048_K.fits` — the same
-beamed CMB+tSZ+CIB totals as §1.2 but in **K_CMB**. r2 variant reads
-`ilc/inputs_nside2048_homog_r2/…` (independent noise realisation, same beamed signal;
-`scripts/build_homog_r2_test_maps.py`).
+beamed CMB+tSZ+CIB **L1_m9** totals as §1.2 but in **K_CMB**. r2 variant reads
+`ilc/inputs_nside2048_homog_r2/…` (independent noise realisation, same L1_m9 beamed signal;
+`scripts/build_homog_r2_test_maps.py` from `total_maps/L1_m9`, not `total_maps/test`).
 
 **The four configs differ only in inputs and masks:**
 
