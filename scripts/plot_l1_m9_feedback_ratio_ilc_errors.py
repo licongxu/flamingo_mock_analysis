@@ -108,12 +108,26 @@ def ilc_fsky(sky: str) -> float:
     return float(np.mean(w**2))
 
 
-def ilc_sigma_18(npz: Path, fsky: float, bl: np.ndarray, good: np.ndarray) -> np.ndarray:
+def _ilc_cls(npz: Path, bl: np.ndarray, good: np.ndarray):
     z = np.load(npz)
-    c11 = deconv_auto(z["cl_11"], bl, good)
-    c22 = deconv_auto(z["cl_22"], bl, good)
-    c12 = deconv_auto(z["cl_12"], bl, good)
+    return (
+        deconv_auto(z["cl_11"], bl, good),
+        deconv_auto(z["cl_22"], bl, good),
+        deconv_auto(z["cl_12"], bl, good),
+    )
+
+
+def ilc_sigma_18(npz: Path, fsky: float, bl: np.ndarray, good: np.ndarray) -> np.ndarray:
+    c11, c22, c12 = _ilc_cls(npz, bl, good)
     return sigma_dl_cross_binned(c11, c22, c12, ELL_MIN_18, ELL_MAX_18_EXCL, fsky)
+
+
+def ilc_sigma_exp_18(npz: Path, fsky: float, bl: np.ndarray, good: np.ndarray) -> np.ndarray:
+    """Gaussian experimental piece: (C11 C22 − C12²) / N_modes, no tSZ cosmic variance."""
+    c11, c22, c12 = _ilc_cls(npz, bl, good)
+    sig_tot = sigma_dl_cross_binned(c11, c22, c12, ELL_MIN_18, ELL_MAX_18_EXCL, fsky)
+    sig_cv = sigma_dl_cross_binned(c12, c12, c12, ELL_MIN_18, ELL_MAX_18_EXCL, fsky)
+    return np.sqrt(np.clip(sig_tot**2 - sig_cv**2, 0.0, None))
 
 
 def knox_sigma(dl: np.ndarray, fsky: float) -> np.ndarray:
@@ -384,22 +398,27 @@ def _cib_vec(deproj: str, bl, good) -> np.ndarray:
 
 
 def joint_fisher(t: np.ndarray, f: np.ndarray, m: np.ndarray) -> dict:
-    """Joint (A_yy, A_CIB) Fisher. σ_A=(F^{-1})_{AA} enters M+σ_A²ff^T with ILC."""
+    """Linear Gaussian d = X A + n, n~N(0,M), X = (t | T) with T = CIB only.
+
+    Σ_A = (X^T M^{-1} X)^{-1} is the joint posterior covariance.
+    σ(A_tSZ) marginalized over FG is sqrt((Σ_A)_{tt}); σ(A_CIB) is sqrt((Σ_A)_{AA}).
+    """
     m = _sym_psd(m)
-    mt = np.linalg.solve(m, t)
-    mf = np.linalg.solve(m, f)
-    tt = float(t @ mt)
-    ff = float(f @ mf)
-    tf = float(t @ mf)
+    x = np.column_stack((np.asarray(t, dtype=np.float64), np.asarray(f, dtype=np.float64)))
+    fisher = x.T @ np.linalg.solve(m, x)
+    cov_a = np.linalg.inv(_sym_psd(fisher))
+    tt, ff, tf = float(fisher[0, 0]), float(fisher[1, 1]), float(fisher[0, 1])
     cos = tf / np.sqrt(tt * ff)
     sin2 = max(1.0 - cos**2, 1e-12)
-    sig_a = 1.0 / np.sqrt(ff * sin2)
+    sig_yy = float(np.sqrt(cov_a[0, 0]))
+    sig_a = float(np.sqrt(cov_a[1, 1]))
     return {
         "M": m,
         "f": f,
+        "cov_A": cov_a,
         "cos": cos,
         "sig_A": sig_a,
-        "sig_yy": 1.0 / np.sqrt(tt * sin2),
+        "sig_yy": sig_yy,
         "inflate": 1.0 / np.sqrt(sin2),
         "rel_cib": sig_a * f / t,
     }
@@ -520,32 +539,47 @@ def plot_q5_cib_amp(
     return _save(fig, stem)
 
 
-def plot_q5_nodeproj_marg_vs_stat(
+def plot_q5_linear_fg_amp(
     mod, dl_fid_1e12: np.ndarray, fsky_ilc: float, bl, good, stem: Path
 ) -> Path:
-    """No-deproj: CV only vs CV + marg. CIB, plus the correlated CIB piece."""
+    r"""Linear model: d = A_tSZ C^{tSZ} + A_CIB C^{CIB} (fixed templates).
+
+    Three 68% envelopes about 1: ILC cosmic variance, marg. A_CIB,
+    both, plus flat 1 ± σ(A_tSZ) after FG marg.
+    """
     q5_curves, _ell, inside, ylim, curve_colors, x = _q5_ratio_layout(mod)
     t = np.asarray(dl_fid_1e12, dtype=np.float64) * 1.0e-12
     j = _deproj_joint("none", t, fsky_ilc, bl, good)
     rng = np.random.default_rng(1)
-    lo_cv, hi_cv = _ratio_quantiles(j["M"], t, rng)
-    lo_tot, hi_tot = _combined_lohi(j, t, rng)
+    eps = rng.standard_normal((N_MC, t.size)) @ _chol_factor(j["M"]).T
+    ratio_cv = 1.0 + eps / t
+    lo_cv = np.percentile(ratio_cv, 16.0, axis=0)
+    hi_cv = np.percentile(ratio_cv, 84.0, axis=0)
+    amp = rng.normal(0.0, j["sig_A"], size=N_MC)
+    ratio_tot = ratio_cv + amp[:, None] * (j["f"] / t)
+    lo_tot = np.percentile(ratio_tot, 16.0, axis=0)
+    hi_tot = np.percentile(ratio_tot, 84.0, axis=0)
     lo_cib, hi_cib = _cib_marg_lohi(j, t)
+    ones = np.ones_like(t)
+    sig_tsz = float(j["sig_yy"])
+    lo_tsz, hi_tsz = 1.0 - sig_tsz * ones, 1.0 + sig_tsz * ones
     print(
-        f"no deproj  CV      68% |R-1| ℓ=10,959 "
+        f"linear FG  ILC CV   68% |R-1| ℓ=10,959 "
         f"{0.5*(hi_cv[0]-lo_cv[0]):.3f} {0.5*(hi_cv[-1]-lo_cv[-1]):.3f}"
     )
     print(
-        f"no deproj  CV+CIB  68% |R-1| ℓ=10,959 "
-        f"{0.5*(hi_tot[0]-lo_tot[0]):.3f} {0.5*(hi_tot[-1]-lo_tot[-1]):.3f}  "
-        f"cos={j['cos']:.3f}  sig_A={j['sig_A']:.4f}  A_yy x{j['inflate']:.2f}"
+        f"linear FG  marg A   68% |R-1| ℓ=10,959 "
+        f"{j['sig_A'] * j['f'][0] / t[0]:.3f} {j['sig_A'] * j['f'][-1] / t[-1]:.3f}  "
+        f"cos={j['cos']:.3f}  sig_A={j['sig_A']:.4f}"
     )
     print(
-        f"no deproj  CIB     σ_A F/D ℓ=10,959 "
-        f"{j['sig_A'] * j['f'][0] / t[0]:.3f} {j['sig_A'] * j['f'][-1] / t[-1]:.3f}"
+        f"linear FG  CV+A     68% |R-1| ℓ=10,959 "
+        f"{0.5*(hi_tot[0]-lo_tot[0]):.3f} {0.5*(hi_tot[-1]-lo_tot[-1]):.3f}"
     )
+    print(f"linear FG  σ(A_tSZ) marg={sig_tsz:.4f}")
     fig, axes = plt.subplots(
-        1, 2, figsize=(PANEL_W * 2, PANEL_H + LEGEND_H), sharex=True, sharey=True,
+        1, 2, figsize=(PANEL_W * 2, PANEL_H + LEGEND_H + 0.15),
+        sharex=True, sharey=True,
     )
     for ax, variant in zip(axes, FOCUS_VARIANTS):
         _e, ratios = mod.ratios_by_q(variant, q5_curves, log=False)
@@ -553,20 +587,26 @@ def plot_q5_nodeproj_marg_vs_stat(
             x, lo_tot[inside], hi_tot[inside],
             facecolor="#6a51a3", alpha=0.10, lw=0, zorder=1,
         )
-        ax.plot(x, lo_tot[inside], color="#6a51a3", lw=1.2, zorder=3, alpha=0.55)
-        ax.plot(x, hi_tot[inside], color="#6a51a3", lw=1.2, zorder=3, alpha=0.55)
+        ax.plot(x, lo_tot[inside], color="#6a51a3", lw=1.4, zorder=3, alpha=0.70)
+        ax.plot(x, hi_tot[inside], color="#6a51a3", lw=1.4, zorder=3, alpha=0.70)
         ax.fill_between(
             x, lo_cv[inside], hi_cv[inside],
             facecolor="#9ecae1", alpha=0.22, lw=0, zorder=2,
         )
-        ax.plot(x, lo_cv[inside], color="#3182bd", lw=1.2, zorder=3, alpha=0.70)
-        ax.plot(x, hi_cv[inside], color="#3182bd", lw=1.2, zorder=3, alpha=0.70)
+        ax.plot(x, lo_cv[inside], color="#3182bd", lw=1.5, zorder=3)
+        ax.plot(x, hi_cv[inside], color="#3182bd", lw=1.5, zorder=3)
         ax.fill_between(
             x, lo_cib[inside], hi_cib[inside],
             facecolor="#fd8d3c", alpha=0.18, lw=0, zorder=4,
         )
-        ax.plot(x, lo_cib[inside], color="#e6550d", lw=1.6, zorder=5)
-        ax.plot(x, hi_cib[inside], color="#e6550d", lw=1.6, zorder=5)
+        ax.plot(x, lo_cib[inside], color="#e6550d", lw=1.7, zorder=5)
+        ax.plot(x, hi_cib[inside], color="#e6550d", lw=1.7, zorder=5)
+        ax.fill_between(
+            x, lo_tsz[inside], hi_tsz[inside],
+            facecolor="#74c476", alpha=0.20, lw=0, zorder=6,
+        )
+        ax.plot(x, lo_tsz[inside], color="#238b45", lw=1.7, zorder=7)
+        ax.plot(x, hi_tsz[inside], color="#238b45", lw=1.7, zorder=7)
         _draw_ratio_curves(ax, x, ratios, inside, q5_curves, curve_colors)
         ax.set_ylim(*ylim)
         ax.set_title(
@@ -580,28 +620,45 @@ def plot_q5_nodeproj_marg_vs_stat(
             [0], [0], color=curve_colors[5.0], marker="o", lw=1.6, markersize=4,
             label=r"$q>5$",
         ),
-        Line2D([0], [0], color="#3182bd", lw=2.2, label=r"CV only"),
-        Line2D([0], [0], color="#6a51a3", lw=2.2, label=r"CV + marg. CIB"),
-        Line2D([0], [0], color="#e6550d", lw=2.2, label=r"CIB marg. (correlated)"),
+        Line2D(
+            [0], [0], color="#3182bd", lw=2.2,
+            label=r"ILC cosmic variance",
+        ),
+        Line2D(
+            [0], [0], color="#e6550d", lw=2.2,
+            label=r"marg.\ $A_{\mathrm{CIB}}$",
+        ),
+        Line2D(
+            [0], [0], color="#238b45", lw=2.2,
+            label=r"$\sigma(A_{\mathrm{tSZ}})$, marg.\ FG",
+        ),
+        Line2D(
+            [0], [0], color="#6a51a3", lw=2.2,
+            label=r"ILC CV + marg.\ $A_{\mathrm{CIB}}$",
+        ),
     ]
     fig.legend(
-        handles=handles, loc="lower center", ncol=4, frameon=False, fontsize=8.5,
+        handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=8.5,
         bbox_to_anchor=(0.5, -0.02),
     )
     fig.suptitle(
-        r"FLAMINGO L1\_m9 $q>5$, no-deproj HILC. "
-        r"68\% cosmic variance vs CV + marg.\ CIB; "
-        r"orange: correlated $A_{\mathrm{CIB}}$ ($1\pm\sigma_A F/D$).",
-        fontsize=10, y=1.01,
+        r"$d_\ell = A_{\mathrm{tSZ}}\,C_\ell^{\mathrm{tSZ}}"
+        r" + A_{\mathrm{CIB}}\,C_\ell^{\mathrm{CIB}}$"
+        r" \ (fixed templates, free amplitudes; CIB is the only FG)"
+        "\n"
+        r"FLAMINGO L1\_m9 $q>5$, no-deproj.\ HILC. "
+        r"Orange: $1\pm\sigma_A f/t$. "
+        r"Green: $1\pm\sqrt{(\Sigma_A)_{tt}}$.",
+        fontsize=10, y=1.02,
     )
-    fig.tight_layout(rect=(0.0, 0.05, 1.0, 0.96))
+    fig.tight_layout(rect=(0.0, 0.06, 1.0, 0.95))
     return _save(fig, stem)
 
 
 def plot_q5_nodeproj_vs_cib_fg_marg(
     mod, dl_fid_1e12: np.ndarray, fsky_ilc: float, bl, good, stem: Path
 ) -> Path:
-    """One combined band per prescription: no deproj vs CIB deproj."""
+    """CV+CIB combined bands, plus correlated CIB marg., no deproj vs CIB deproj."""
     q5_curves, _ell, inside, ylim, curve_colors, x = _q5_ratio_layout(mod)
     t = np.asarray(dl_fid_1e12, dtype=np.float64) * 1.0e-12
     rng = np.random.default_rng(2)
@@ -609,6 +666,8 @@ def plot_q5_nodeproj_vs_cib_fg_marg(
     jc = _deproj_joint("cib", t, fsky_ilc, bl, good)
     lo_n, hi_n = _combined_lohi(jn, t, rng)
     lo_c, hi_c = _combined_lohi(jc, t, rng)
+    lo_cn, hi_cn = _cib_marg_lohi(jn, t)
+    lo_cc, hi_cc = _cib_marg_lohi(jc, t)
     print(
         f"none CV+CIB  68% |R-1| ℓ=10,959 "
         f"{0.5*(hi_n[0]-lo_n[0]):.3f} {0.5*(hi_n[-1]-lo_n[-1]):.3f}  "
@@ -619,6 +678,14 @@ def plot_q5_nodeproj_vs_cib_fg_marg(
         f"{0.5*(hi_c[0]-lo_c[0]):.3f} {0.5*(hi_c[-1]-lo_c[-1]):.3f}  "
         f"sig_A={jc['sig_A']:.4f}  A_yy x{jc['inflate']:.2f}"
     )
+    print(
+        f"none CIB marg σ_A F/D ℓ=10,959 "
+        f"{jn['sig_A'] * jn['f'][0] / t[0]:.3f} {jn['sig_A'] * jn['f'][-1] / t[-1]:.3f}"
+    )
+    print(
+        f"CIB  CIB marg σ_A F/D ℓ=10,959 "
+        f"{jc['sig_A'] * jc['f'][0] / t[0]:.3f} {jc['sig_A'] * jc['f'][-1] / t[-1]:.3f}"
+    )
     fig, axes = plt.subplots(
         1, 2, figsize=(PANEL_W * 2, PANEL_H + LEGEND_H), sharex=True, sharey=True,
     )
@@ -626,16 +693,28 @@ def plot_q5_nodeproj_vs_cib_fg_marg(
         _e, ratios = mod.ratios_by_q(variant, q5_curves, log=False)
         ax.fill_between(
             x, lo_c[inside], hi_c[inside],
-            facecolor="#31a354", alpha=0.20, lw=0, zorder=1,
+            facecolor="#31a354", alpha=0.08, lw=0, zorder=1,
         )
-        ax.plot(x, lo_c[inside], color="#238b45", lw=2.0, zorder=3)
-        ax.plot(x, hi_c[inside], color="#238b45", lw=2.0, zorder=3)
+        ax.plot(x, lo_c[inside], color="#238b45", lw=1.2, zorder=3, alpha=0.50)
+        ax.plot(x, hi_c[inside], color="#238b45", lw=1.2, zorder=3, alpha=0.50)
         ax.fill_between(
             x, lo_n[inside], hi_n[inside],
-            facecolor="#3182bd", alpha=0.28, lw=0, zorder=2,
+            facecolor="#3182bd", alpha=0.10, lw=0, zorder=2,
         )
-        ax.plot(x, lo_n[inside], color="#08519c", lw=1.6, zorder=3)
-        ax.plot(x, hi_n[inside], color="#08519c", lw=1.6, zorder=3)
+        ax.plot(x, lo_n[inside], color="#08519c", lw=1.2, zorder=3, alpha=0.50)
+        ax.plot(x, hi_n[inside], color="#08519c", lw=1.2, zorder=3, alpha=0.50)
+        ax.fill_between(
+            x, lo_cc[inside], hi_cc[inside],
+            facecolor="#74c476", alpha=0.16, lw=0, zorder=4,
+        )
+        ax.plot(x, lo_cc[inside], color="#006d2c", lw=1.6, zorder=5)
+        ax.plot(x, hi_cc[inside], color="#006d2c", lw=1.6, zorder=5)
+        ax.fill_between(
+            x, lo_cn[inside], hi_cn[inside],
+            facecolor="#fd8d3c", alpha=0.18, lw=0, zorder=6,
+        )
+        ax.plot(x, lo_cn[inside], color="#e6550d", lw=1.6, zorder=7)
+        ax.plot(x, hi_cn[inside], color="#e6550d", lw=1.6, zorder=7)
         _draw_ratio_curves(ax, x, ratios, inside, q5_curves, curve_colors)
         ax.set_ylim(*ylim)
         ax.set_title(
@@ -651,17 +730,19 @@ def plot_q5_nodeproj_vs_cib_fg_marg(
         ),
         Line2D([0], [0], color="#08519c", lw=2.2, label=r"no deproj., CV+CIB"),
         Line2D([0], [0], color="#238b45", lw=2.2, label=r"CIB deproj., CV+CIB"),
+        Line2D([0], [0], color="#e6550d", lw=2.2, label=r"no deproj., CIB marg."),
+        Line2D([0], [0], color="#006d2c", lw=2.2, label=r"CIB deproj., CIB marg."),
     ]
     fig.legend(
-        handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=8.5,
+        handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=8.0,
         bbox_to_anchor=(0.5, -0.02),
     )
     fig.suptitle(
-        r"FLAMINGO L1\_m9 $q>5$. One 68\% band (CV + correlated CIB) "
-        r"per HILC: no deproj.\ vs CIB deproj.",
+        r"FLAMINGO L1\_m9 $q>5$. Faint: CV + marg.\ CIB. "
+        r"Solid: correlated CIB ($1\pm\sigma_A F/D$), no deproj.\ vs CIB deproj.",
         fontsize=10, y=1.01,
     )
-    fig.tight_layout(rect=(0.0, 0.05, 1.0, 0.96))
+    fig.tight_layout(rect=(0.0, 0.06, 1.0, 0.96))
     return _save(fig, stem)
 
 
@@ -708,6 +789,17 @@ def main() -> None:
                 f"{sky:<8} {deproj:<10} {'ILC G':<8} "
                 f"{rel_g[i10]:8.3f} {rel_g[i335]:8.3f} {rel_g[i959]:8.3f}"
             )
+            rel_exp = (
+                ilc_sigma_exp_18(
+                    ILC_NPZ[(deproj, ilc_sky)], fsky_ilc[ilc_sky], bl, good
+                )
+                * 1.0e12
+                / dl_fid
+            )
+            print(
+                f"{sky:<8} {deproj:<10} {'ILC exp':<8} "
+                f"{rel_exp[i10]:8.3f} {rel_exp[i335]:8.3f} {rel_exp[i959]:8.3f}"
+            )
             print(
                 f"{sky:<8} {deproj:<10} {'ILC+T':<8} "
                 f"{rel[i10]:8.3f} {rel[i335]:8.3f} {rel[i959]:8.3f}"
@@ -725,9 +817,9 @@ def main() -> None:
         mod, rel_bands[("q5", "old")], dl_q5, fsky_ilc["q5"], bl, good,
         FIG_DIR / "l1_m9_fgas8_mstar_ratio_q5_cib_amplitude_marg",
     )
-    plot_q5_nodeproj_marg_vs_stat(
+    plot_q5_linear_fg_amp(
         mod, dl_q5, fsky_ilc["q5"], bl, good,
-        FIG_DIR / "l1_m9_fgas8_mstar_ratio_q5_nodeproj_fg_marg",
+        FIG_DIR / "l1_m9_fgas8_mstar_ratio_q5_linear_cib_amp_marg",
     )
     plot_q5_nodeproj_vs_cib_fg_marg(
         mod, dl_q5, fsky_ilc["q5"], bl, good,
