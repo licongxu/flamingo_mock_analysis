@@ -1,27 +1,40 @@
-"""Binary + C2-apodized mask from the homog iMMF test catalogue (q>5).
+"""Binary + C2-apodized mask from a homog iMMF catalogue (q>5).
 
 Hole radius is max(4 theta_500, 2 FWHM) with FWHM=10 arcmin. Apodization
 matches tsz_cnc_paper_plots: nmt.mask_apodization(..., 0.25, apotype="C2").
+
+Default (no --prescription) keeps the original unlabeled L1_m9 mask paths.
+--prescription NAME reads that run's fullsky_splitA_immf_q5.npz catalogue.
 """
 from __future__ import annotations
 
+import argparse
+import sys
 from pathlib import Path
 
 import healpy as hp
 import numpy as np
 import pymaster as nmt
 
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from hilc_prescriptions import (
+    ALL_RUNS,
+    catalogue_path,
+    cluster_mask_apo,
+    cluster_mask_binary,
+)
+
 NSIDE = 2048
 Q_CUT = 5.0
 FWHM_ARCMIN = 10.0
 APOSIZE_DEG = 0.25
-CAT = Path(
+LEGACY_CAT = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/catalogues"
     "/homog_immf_fullsky_splitA_immf_q5.npz"
 )
 ILC_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc")
-OUT_BIN = ILC_DIR / "szifi_immf_q5_cluster_mask_nside2048.fits"
-OUT_APO = ILC_DIR / "szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
 
 
 def build_binary_mask(nside: int, lon_deg: np.ndarray, lat_deg: np.ndarray, radius_rad: np.ndarray) -> np.ndarray:
@@ -33,7 +46,24 @@ def build_binary_mask(nside: int, lon_deg: np.ndarray, lat_deg: np.ndarray, radi
 
 
 def main() -> None:
-    det = np.load(CAT)
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--prescription",
+        choices=ALL_RUNS,
+        default=None,
+        help="Use szifi_homog/<name>/catalogues/fullsky_splitA_immf_q5.npz",
+    )
+    args = p.parse_args()
+    if args.prescription is None:
+        cat = LEGACY_CAT
+        out_bin = ILC_DIR / "szifi_immf_q5_cluster_mask_nside2048.fits"
+        out_apo = ILC_DIR / "szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
+    else:
+        cat = catalogue_path(args.prescription)
+        out_bin = cluster_mask_binary(args.prescription)
+        out_apo = cluster_mask_apo(args.prescription)
+
+    det = np.load(cat)
     q = np.asarray(det["q_opt"], dtype=np.float64)
     sel = q > Q_CUT
     lon = np.asarray(det["lon"], dtype=np.float64)[sel]
@@ -43,7 +73,7 @@ def main() -> None:
         4.0 * np.deg2rad(th500 / 60.0),
         2.0 * np.deg2rad(FWHM_ARCMIN / 60.0),
     )
-    print(f"catalogue={CAT}")
+    print(f"catalogue={cat}")
     print(f"n_q>{Q_CUT:g} = {int(sel.sum())} / {q.size}")
     print(
         f"radius arcmin: min={np.rad2deg(radius.min())*60:.2f}  "
@@ -62,11 +92,11 @@ def main() -> None:
         f"soft-edge={soft:.4f}"
     )
 
-    ILC_DIR.mkdir(parents=True, exist_ok=True)
-    hp.write_map(str(OUT_BIN), mask_bin, nest=False, overwrite=True, dtype=np.float64)
-    hp.write_map(str(OUT_APO), mask_apo, nest=False, overwrite=True, dtype=np.float64)
-    print("wrote", OUT_BIN)
-    print("wrote", OUT_APO)
+    out_bin.parent.mkdir(parents=True, exist_ok=True)
+    hp.write_map(str(out_bin), mask_bin, nest=False, overwrite=True, dtype=np.float64)
+    hp.write_map(str(out_apo), mask_apo, nest=False, overwrite=True, dtype=np.float64)
+    print("wrote", out_bin)
+    print("wrote", out_apo)
 
 
 if __name__ == "__main__":

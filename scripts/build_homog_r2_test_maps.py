@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Independent homogeneous white-noise realisation (r2) on the fiducial L1_m9 skies.
+"""Independent homogeneous white-noise realisation (r2) on beamed totals.
 
 Same pixel-white recipe as notebooks/homogeneous_planck_white_noise.ipynb
-(SEED=1042 instead of 42). Observation maps keep the r1 beamed L1_m9 signal:
+(SEED=1042 instead of 42). Observation maps keep the r1 beamed signal:
 
   total_r2 = total_r1 - noise_r1 + noise_r2
 
-and are written next to the r1 L1_m9 maps (no overwrite of the uK r1 totals).
-pyILC K_CMB copies: r1 -> ilc/inputs_nside2048_homog/ (overwrites the old L2p8
-test-sky copies); r2 -> ilc/inputs_nside2048_homog_r2/.
-Does not touch total_maps/test/ (L2p8 demo).
+Default prescription is L1_m9. Other hydro/cosmology variants share the same
+r1/r2 noise maps and only swap the beamed CMB+tSZ+CIB. Does not touch
+total_maps/test/ (L2p8 demo).
 """
 from __future__ import annotations
 
+import argparse
+import sys
 from pathlib import Path
 
 import healpy as hp
@@ -20,6 +21,11 @@ import numpy as np
 
 from flamingo_mock.config import BEAM_FWHM_ARCMIN, PLANCK_FREQUENCIES_GHZ
 from flamingo_mock.io import write_map
+
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from hilc_prescriptions import ALL_RUNS, ilc_input_dir, total_maps_dir
 
 NSIDE = 2048
 SEED_R2 = 1042  # r1 used 42; independent streams
@@ -42,9 +48,6 @@ NELL = {
 }
 
 NOISE = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/planck_noise/homogeneous")
-TOTAL_R1 = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/total_maps/L1_m9")
-ILC_K_R1 = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog")
-ILC_K = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2")
 
 OMEGA_ARCMIN2 = hp.nside2pixarea(NSIDE, degrees=True) * 3600.0
 
@@ -56,35 +59,50 @@ def load_uK(path: Path) -> np.ndarray:
 
 
 def main() -> None:
-    ILC_K_R1.mkdir(parents=True, exist_ok=True)
-    ILC_K.mkdir(parents=True, exist_ok=True)
-    print(f"seed_r2={SEED_R2}  nside={NSIDE}  Omega={OMEGA_ARCMIN2:.4f} arcmin^2")
-    print(f"r1 K maps <- {TOTAL_R1}  (overwrite test-sky copies)")
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--prescription",
+        choices=ALL_RUNS,
+        default="L1_m9",
+        help="Beamed totals to pair with the shared r1/r2 white noise",
+    )
+    args = p.parse_args()
+    name = args.prescription
+    total_r1_dir = total_maps_dir(name)
+    ilc_k_r1 = ilc_input_dir(name, 1)
+    ilc_k_r2 = ilc_input_dir(name, 2)
+    ilc_k_r1.mkdir(parents=True, exist_ok=True)
+    ilc_k_r2.mkdir(parents=True, exist_ok=True)
+    print(f"prescription={name}  seed_r2={SEED_R2}  nside={NSIDE}  Omega={OMEGA_ARCMIN2:.4f} arcmin^2")
+    print(f"r1 K maps <- {total_r1_dir}")
 
     for nu in FREQS:
         sigma_pix = UK_ARCMIN[nu] / np.sqrt(OMEGA_ARCMIN2)
-        rng = np.random.default_rng(SEED_R2 + int(nu))
-        noise_r2 = rng.normal(0.0, sigma_pix, hp.nside2npix(NSIDE))
         dest_n = NOISE / f"{nu}GHz" / f"white_noise_{nu}GHz_nside{NSIDE}_uK_r2.fits"
-        write_map(
-            dest_n,
-            noise_r2,
-            unit="uK_CMB",
-            freq=float(nu),
-            extra=[
-                ("FWHM", float(BEAM_FWHM_ARCMIN[nu]), "beam FWHM [arcmin], NOT applied"),
-                ("UKARCMIN", UK_ARCMIN[nu], "white noise w^{-1/2} [uK arcmin]"),
-                ("NELL", NELL[nu], "target white N_ell [uK^2]"),
-                ("SEED", SEED_R2 + int(nu), "np.random.default_rng seed"),
-                ("REAL", 2, "independent realisation (r1 used SEED=42+nu)"),
-                ("COMMENT", "homogeneous pixel white noise; no beam smoothing"),
-            ],
-            dtype=np.float32,
-        )
+        if dest_n.is_file():
+            noise_r2 = load_uK(dest_n)
+        else:
+            rng = np.random.default_rng(SEED_R2 + int(nu))
+            noise_r2 = rng.normal(0.0, sigma_pix, hp.nside2npix(NSIDE))
+            write_map(
+                dest_n,
+                noise_r2,
+                unit="uK_CMB",
+                freq=float(nu),
+                extra=[
+                    ("FWHM", float(BEAM_FWHM_ARCMIN[nu]), "beam FWHM [arcmin], NOT applied"),
+                    ("UKARCMIN", UK_ARCMIN[nu], "white noise w^{-1/2} [uK arcmin]"),
+                    ("NELL", NELL[nu], "target white N_ell [uK^2]"),
+                    ("SEED", SEED_R2 + int(nu), "np.random.default_rng seed"),
+                    ("REAL", 2, "independent realisation (r1 used SEED=42+nu)"),
+                    ("COMMENT", "homogeneous pixel white noise; no beam smoothing"),
+                ],
+                dtype=np.float32,
+            )
 
         noise_r1 = load_uK(NOISE / f"{nu}GHz" / f"white_noise_{nu}GHz_nside{NSIDE}_uK.fits")
         total_r1 = load_uK(
-            TOTAL_R1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK.fits"
+            total_r1_dir / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK.fits"
         )
         if hp.get_nside(noise_r1) != NSIDE or hp.get_nside(total_r1) != NSIDE:
             raise ValueError(f"{nu} GHz nside mismatch")
@@ -95,7 +113,7 @@ def main() -> None:
             f"rms_n2={noise_r2.std():8.3f}  corr(n1,n2)={corr:+.4f}  "
             f"rms_tot2={total_r2.std():8.3f}"
         )
-        dest_k1 = ILC_K_R1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_K.fits"
+        dest_k1 = ilc_k_r1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_K.fits"
         write_map(
             dest_k1,
             total_r1 * 1e-6,
@@ -103,12 +121,13 @@ def main() -> None:
             freq=float(nu),
             extra=[
                 ("COMPS", "CMB+tSZ+CIB+homog_noise"),
-                ("FROMUK", str(TOTAL_R1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK.fits")),
+                ("PRESCRIP", name),
+                ("FROMUK", str(total_r1_dir / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK.fits")),
                 ("REAL", 1),
             ],
             dtype=np.float32,
         )
-        dest_t = TOTAL_R1 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK_r2.fits"
+        dest_t = total_r1_dir / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_uK_r2.fits"
         write_map(
             dest_t,
             total_r2,
@@ -122,11 +141,12 @@ def main() -> None:
                 ("REAL", 2),
                 ("NKSZ", 1, "kSZ not included"),
                 ("PIXWIN", 0, "0=do NOT deconvolve HEALPix pixwin"),
+                ("PRESCRIP", name),
                 ("COMMENT", "same beamed signal as r1; independent white noise"),
             ],
             dtype=np.float32,
         )
-        dest_k = ILC_K / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_K.fits"
+        dest_k = ilc_k_r2 / f"sky_CMB_tSZ_CIB_homog_{nu}GHz_nside{NSIDE}_K.fits"
         write_map(
             dest_k,
             total_r2 * 1e-6,
@@ -134,6 +154,7 @@ def main() -> None:
             freq=float(nu),
             extra=[
                 ("COMPS", "CMB+tSZ+CIB+homog_noise"),
+                ("PRESCRIP", name),
                 ("FROMUK", str(dest_t)),
                 ("REAL", 2),
             ],
