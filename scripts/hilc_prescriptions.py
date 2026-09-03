@@ -85,6 +85,11 @@ def total_maps_dir(name: str) -> Path:
 
 
 def catalogue_path(name: str) -> Path:
+    if name == "L1_m9":
+        return (
+            SYNTH / "szifi_homog" / "catalogues"
+            / "homog_immf_fullsky_splitA_immf_q5.npz"
+        )
     return (
         SYNTH / "szifi_homog" / name / "catalogues" / "fullsky_splitA_immf_q5.npz"
     )
