@@ -1,5 +1,4 @@
-# Same full-sky HILC as hilc_y_flamingo_homog.yml, independent white-noise r2.
-# L1_m9 maps: same beamed CMB+tSZ+CIB as r1, new homogeneous noise realisation.
+# HILC y on L1_m9 homog skies. Independent white-noise r2.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_r2/
 output_prefix: flamingo_

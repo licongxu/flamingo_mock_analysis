@@ -1,6 +1,4 @@
-# Same HILC as hilc_y_flamingo_homog.yml (full-sky homog test maps), but
-# q>5 iMMF clusters are masked on the input maps before SHTs.
-# Mask: binary holes, radius max(4 theta_500, 2*10'), C2 0.25 deg for plots.
+# HILC y on L1_m9 homog skies with q>5 iMMF holes. Noise realisation r1.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked/
 output_prefix: flamingo_

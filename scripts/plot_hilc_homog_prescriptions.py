@@ -1,11 +1,15 @@
-"""HILC r1×r2 plots for each hydro/cosmology variant (no deprojection).
+"""HILC r1×r2 plots for each hydro/cosmology variant and deprojection case.
 
 Same layout as the L1_m9 fiducial Fig. 9 scripts: truth y, split-cross,
 CIB/CMB/noise residuals, ILC-bias curve. Full sky and q>5-masked (each
-prescription uses its own SZiFi catalogue mask). Writes under figures/hilc/.
+prescription uses its own SZiFi catalogue mask).
+
+Writes under figures/hilc/{prescription}/{deproj}/ and combined overlays under
+figures/hilc/combined/{deproj}/.
 """
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import sys
 from pathlib import Path
@@ -28,13 +32,17 @@ from flamingo_mock.powerspectra import (
 _SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPTS))
 from hilc_prescriptions import (  # noqa: E402
+    ALL_DEPROJ,
     ALL_RUNS,
+    DEPROJ_NONE,
+    DeprojCase,
     LABELS,
-    REPO,
     catalogue_path,
     cib_dir,
     cluster_mask_apo,
     cmb_path,
+    fig_combined_dir,
+    fig_dir,
     hilc_output_dir,
     hilc_ymap,
     tsz_dir,
@@ -56,7 +64,6 @@ ELL_PLOT_MAX = diag.ELL_PLOT_MAX
 ELL_MIN, ELL_MAX, ELL_EFF = diag.ELL_MIN, diag.ELL_MAX, diag.ELL_EFF
 FREQS = diag.FREQS
 YLIM = (1.0e-17, 3.0e-9)
-FIG_ROOT = REPO / "figures" / "hilc"
 
 
 def _load_uk_to_k(path: Path) -> np.ndarray:
@@ -90,12 +97,25 @@ def alm_pair_to_cl(y1, y2, w: np.ndarray | None) -> np.ndarray:
     return masked_cl(m1, m2, w)
 
 
-def load_pack(name: str, *, masked: bool, sig: dict, bl, good, w_apo) -> dict:
-    y1p = hilc_ymap(name, masked=masked, real=1)
-    y2p = hilc_ymap(name, masked=masked, real=2)
-    wdir1 = hilc_output_dir(name, masked=masked, real=1)
-    wdir2 = hilc_output_dir(name, masked=masked, real=2)
-    cache_p = wdir2 / f"hilc_{name}_{'q5masked' if masked else 'fullsky'}_r1xr2_cl.npz"
+def load_pack(
+    name: str,
+    *,
+    masked: bool,
+    deproj: DeprojCase,
+    sig: dict,
+    bl,
+    good,
+    w_apo,
+) -> dict | None:
+    y1p = hilc_ymap(name, masked=masked, real=1, deproj=deproj)
+    y2p = hilc_ymap(name, masked=masked, real=2, deproj=deproj)
+    if not y1p.is_file() or not y2p.is_file():
+        print(f"skip plot {name} {deproj.key}: missing {y1p.name} or {y2p.name}", flush=True)
+        return None
+    wdir1 = hilc_output_dir(name, masked=masked, real=1, deproj=deproj)
+    wdir2 = hilc_output_dir(name, masked=masked, real=2, deproj=deproj)
+    sky = "q5masked" if masked else "fullsky"
+    cache_p = wdir2 / f"hilc_{name}_{sky}_{deproj.key}_r1xr2_cl.npz"
     stored: dict = {}
     if cache_p.is_file():
         z = np.load(cache_p)
@@ -121,9 +141,12 @@ def load_pack(name: str, *, masked: bool, sig: dict, bl, good, w_apo) -> dict:
 
     need_res = any(k not in stored for k in ("cl_cib_w", "cl_cmb_w", "cl_n_w"))
     if need_res:
-        print(f"  weighted residuals {name} {'q5masked' if masked else 'fullsky'} ...", flush=True)
-        w1 = diag.hilc_weights(wdir1, "", LMAX)
-        w2 = diag.hilc_weights(wdir2, "", LMAX)
+        print(
+            f"  weighted residuals {name} {deproj.key} {'q5masked' if masked else 'fullsky'} ...",
+            flush=True,
+        )
+        w1 = diag.hilc_weights(wdir1, deproj.wtag, LMAX)
+        w2 = diag.hilc_weights(wdir2, deproj.wtag, LMAX)
         y_cib1, y_cib2 = diag.y_alms_signal(w1, w2, sig["cib"], same_all_freq=False)
         y_cmb1, y_cmb2 = diag.y_alms_signal(w1, w2, sig["cmb"], same_all_freq=True)
         y_n1, y_n2 = diag.y_alms_noise(w1, w2)
@@ -135,7 +158,7 @@ def load_pack(name: str, *, masked: bool, sig: dict, bl, good, w_apo) -> dict:
     cache_p.parent.mkdir(parents=True, exist_ok=True)
     np.savez(cache_p, **stored)
     n_modes = n_modes_tophat_hilc(LMAX, HILC_BINSIZE, fsky)
-    frac = ilc_bias_fraction(0, N_FREQ, n_modes)
+    frac = ilc_bias_fraction(deproj.n_deproj, N_FREQ, n_modes)
     cl_tt = np.asarray(stored["cl_tt"], dtype=np.float64)
     ells = np.arange(cl_tt.size, dtype=np.float64)
     pack = {
@@ -148,6 +171,7 @@ def load_pack(name: str, *, masked: bool, sig: dict, bl, good, w_apo) -> dict:
         "cl_n_d": diag.deconv_auto(stored["cl_n_w"], bl, good),
         "fsky": fsky,
         "d_bias": frac * np.abs(dl_from_cl(ells, cl_tt)),
+        "deproj": deproj,
     }
     pack["dl_cross"] = diag.bin_mean_dl(pack["cl_12_d"])
     pack["dl_cib"] = diag.bin_mean_dl(pack["cl_cib_d"])
@@ -171,7 +195,7 @@ def _curve_and_bins(ax, ells, sl, cl, dl, *, color, marker, label, lw=1.3):
         )
 
 
-def plot_fig9(rows: list[tuple[str, dict]], *, masked: bool, out: Path) -> None:
+def plot_fig9(rows: list[tuple[str, dict]], *, masked: bool, deproj: DeprojCase, out: Path) -> None:
     n = len(rows)
     fig, axes = plt.subplots(n, 1, figsize=(8.6, 3.15 * n), sharex=True)
     if n == 1:
@@ -201,12 +225,15 @@ def plot_fig9(rows: list[tuple[str, dict]], *, masked: bool, out: Path) -> None:
         ax.set_ylabel(r"$D_\ell$")
         nq = int(np.load(catalogue_path(name))["q_opt"].size)
         hole = rf"$q>5$ holes ($N={nq}$)" if masked else "full sky"
-        ax.set_title(f"{LABELS[name]}  ({hole}, $N_\\mathrm{{deproj}}=0$)")
+        deproj_txt = deproj.label if deproj.n_deproj else "no deprojection"
+        ax.set_title(
+            f"{LABELS[name]}  ({hole}, $N_\\mathrm{{deproj}}={deproj.n_deproj}$, {deproj_txt})"
+        )
         ax.legend(frameon=False, fontsize=7.5, loc="lower left")
     axes[-1].set_xlabel(r"$\ell$")
     sky = r"$q>5$ cluster holes" if masked else "full sky"
     fig.suptitle(
-        rf"HILC $y$ $r_1\times r_2$ ({sky}, independent noise, shared CMB+tSZ+CIB)"
+        rf"HILC $y$ $r_1\times r_2$ ({sky}, {deproj.label})"
         "\n"
         r"lines: unbinned $D_\ell$; points: Planck 2015 XXII bins",
         y=1.01, fontsize=11,
@@ -218,7 +245,7 @@ def plot_fig9(rows: list[tuple[str, dict]], *, masked: bool, out: Path) -> None:
     print("wrote", out)
 
 
-def plot_y_vs_truth(name: str, *, masked: bool, pack: dict, out: Path) -> None:
+def plot_y_vs_truth(name: str, *, masked: bool, deproj: DeprojCase, pack: dict, out: Path) -> None:
     ells = np.arange(LMAX + 1, dtype=np.float64)
     sl = slice(2, ELL_PLOT_MAX + 1)
     fig, ax = plt.subplots(figsize=(8.2, 4.6))
@@ -231,7 +258,7 @@ def plot_y_vs_truth(name: str, *, masked: bool, pack: dict, out: Path) -> None:
     ax.set_xlabel(r"$\ell$")
     ax.set_ylabel(r"$D_\ell$")
     sky = r"$q>5$ masked" if masked else "full sky"
-    ax.set_title(f"{LABELS[name]} HILC $y$ vs truth ({sky})")
+    ax.set_title(f"{LABELS[name]} HILC $y$ vs truth ({sky}, {deproj.label})")
     ax.legend(frameon=False)
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -240,7 +267,7 @@ def plot_y_vs_truth(name: str, *, masked: bool, pack: dict, out: Path) -> None:
     print("wrote", out)
 
 
-def plot_compare(rows: list[tuple[str, dict]], *, masked: bool, out: Path) -> None:
+def plot_compare(rows: list[tuple[str, dict]], *, masked: bool, deproj: DeprojCase, out: Path) -> None:
     fig, ax = plt.subplots(figsize=(8.4, 5.0))
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -261,7 +288,7 @@ def plot_compare(rows: list[tuple[str, dict]], *, masked: bool, out: Path) -> No
     ax.set_xlabel(r"$\ell$")
     ax.set_ylabel(r"$D_\ell$")
     sky = r"$q>5$ masked" if masked else "full sky"
-    ax.set_title(rf"HILC $y$ $r_1\times r_2$ ({sky})")
+    ax.set_title(rf"HILC $y$ $r_1\times r_2$ ({sky}, {deproj.label})")
     ax.legend(frameon=False, fontsize=9)
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -271,27 +298,48 @@ def plot_compare(rows: list[tuple[str, dict]], *, masked: bool, out: Path) -> No
 
 
 def main() -> None:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--deproj",
+        nargs="+",
+        default=[d.key for d in ALL_DEPROJ],
+        choices=[d.key for d in ALL_DEPROJ],
+        help="Deprojection cases to plot (default: all)",
+    )
+    args = p.parse_args()
+    deprojs = [d for d in ALL_DEPROJ if d.key in args.deproj]
     names = list(ALL_RUNS)
     bl, good = diag.bl10(), diag.bl10() >= 1e-3
-    full_rows = []
-    mask_rows = []
-    for name in names:
-        sig = signal_alms(name)
-        pack_f = load_pack(name, masked=False, sig=sig, bl=bl, good=good, w_apo=None)
-        w_apo = diag.load_map(cluster_mask_apo(name))
-        pack_m = load_pack(name, masked=True, sig=sig, bl=bl, good=good, w_apo=w_apo)
-        sub = FIG_ROOT / name
-        plot_fig9([(name, pack_f)], masked=False, out=sub / "r1xr2_fig9_fullsky.png")
-        plot_fig9([(name, pack_m)], masked=True, out=sub / "r1xr2_fig9_q5masked.png")
-        plot_y_vs_truth(name, masked=False, pack=pack_f, out=sub / "y_vs_truth_fullsky.png")
-        plot_y_vs_truth(name, masked=True, pack=pack_m, out=sub / "y_vs_truth_q5masked.png")
-        full_rows.append((name, pack_f))
-        mask_rows.append((name, pack_m))
-        del sig
-    plot_fig9(full_rows, masked=False, out=FIG_ROOT / "r1xr2_fig9_fullsky_all.png")
-    plot_fig9(mask_rows, masked=True, out=FIG_ROOT / "r1xr2_fig9_q5masked_all.png")
-    plot_compare(full_rows, masked=False, out=FIG_ROOT / "r1xr2_compare_fullsky.png")
-    plot_compare(mask_rows, masked=True, out=FIG_ROOT / "r1xr2_compare_q5masked.png")
+
+    for deproj in deprojs:
+        full_rows: list[tuple[str, dict]] = []
+        mask_rows: list[tuple[str, dict]] = []
+        for name in names:
+            sig = signal_alms(name)
+            w_apo = diag.load_map(cluster_mask_apo(name))
+            pack_f = load_pack(name, masked=False, deproj=deproj, sig=sig, bl=bl, good=good, w_apo=None)
+            pack_m = load_pack(name, masked=True, deproj=deproj, sig=sig, bl=bl, good=good, w_apo=w_apo)
+            if pack_f is None and pack_m is None:
+                del sig
+                continue
+            sub = fig_dir(name, deproj)
+            if pack_f is not None:
+                plot_fig9([(name, pack_f)], masked=False, deproj=deproj, out=sub / "r1xr2_fig9_fullsky.png")
+                plot_y_vs_truth(name, masked=False, deproj=deproj, pack=pack_f, out=sub / "y_vs_truth_fullsky.png")
+                full_rows.append((name, pack_f))
+            if pack_m is not None:
+                plot_fig9([(name, pack_m)], masked=True, deproj=deproj, out=sub / "r1xr2_fig9_q5masked.png")
+                plot_y_vs_truth(name, masked=True, deproj=deproj, pack=pack_m, out=sub / "y_vs_truth_q5masked.png")
+                mask_rows.append((name, pack_m))
+            del sig
+        if full_rows:
+            comb = fig_combined_dir(deproj)
+            plot_fig9(full_rows, masked=False, deproj=deproj, out=comb / "r1xr2_fig9_fullsky_all.png")
+            plot_compare(full_rows, masked=False, deproj=deproj, out=comb / "r1xr2_compare_fullsky.png")
+        if mask_rows:
+            comb = fig_combined_dir(deproj)
+            plot_fig9(mask_rows, masked=True, deproj=deproj, out=comb / "r1xr2_fig9_q5masked_all.png")
+            plot_compare(mask_rows, masked=True, deproj=deproj, out=comb / "r1xr2_compare_q5masked.png")
 
 
 if __name__ == "__main__":

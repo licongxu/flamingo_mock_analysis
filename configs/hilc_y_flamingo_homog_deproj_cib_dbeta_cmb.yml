@@ -1,5 +1,4 @@
-# Full-sky homog HILC with CIB + δβ + CMB deprojection.
-# N_deproj=3, ILC_deproj_comps=[CIB, CIB_dbeta, CMB].
+# HILC y on L1_m9 homog skies (CIB + $\delta\beta$ + CMB). Noise realisation r1.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_deproj_CIB_CIB_dbeta_CMB/
 output_prefix: flamingo_

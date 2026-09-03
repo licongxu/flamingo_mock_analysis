@@ -5,6 +5,7 @@ runs get tagged input/output dirs so they cannot overwrite the fiducial.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 SYNTH = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic")
@@ -24,6 +25,59 @@ SED_YML = (
     "/scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/"
     "input/fg_SEDs_default_params.yml"
 )
+
+
+@dataclass(frozen=True)
+class DeprojCase:
+    key: str
+    dir_tag: str
+    wtag: str
+    yaml_slug: str
+    n_deproj: int
+    comps: tuple[str, ...]
+    label: str
+
+
+DEPROJ_NONE = DeprojCase("nodeproj", "", "", "", 0, (), "no deprojection")
+DEPROJ_CIB = DeprojCase(
+    "deproj_cib", "deproj_CIB", "_deproject_CIB", "deproj_cib", 1, ("CIB",), "CIB"
+)
+DEPROJ_CIB_DBETA = DeprojCase(
+    "deproj_cib_dbeta",
+    "deproj_CIB_CIB_dbeta",
+    "_deproject_CIB_CIB_dbeta",
+    "deproj_cib_dbeta",
+    2,
+    ("CIB", "CIB_dbeta"),
+    r"CIB + $\delta\beta$",
+)
+DEPROJ_CIB_DBETA_CMB = DeprojCase(
+    "deproj_cib_dbeta_cmb",
+    "deproj_CIB_CIB_dbeta_CMB",
+    "_deproject_CIB_CIB_dbeta_CMB",
+    "deproj_cib_dbeta_cmb",
+    3,
+    ("CIB", "CIB_dbeta", "CMB"),
+    r"CIB + $\delta\beta$ + CMB",
+)
+DEPROJ_MOMENTS = DeprojCase(
+    "deproj_moments",
+    "deproj_CIB_CIB_dbeta_CIB_dT",
+    "_deproject_CIB_CIB_dbeta_CIB_dT",
+    "deproj_cib_moments",
+    3,
+    ("CIB", "CIB_dbeta", "CIB_dT"),
+    r"CIB + $\delta\beta$ + $\delta T$",
+)
+
+ALL_DEPROJ = (
+    DEPROJ_NONE,
+    DEPROJ_CIB,
+    DEPROJ_CIB_DBETA,
+    DEPROJ_CIB_DBETA_CMB,
+    DEPROJ_MOMENTS,
+)
+DEPROJ_BY_KEY = {d.key: d for d in ALL_DEPROJ}
 
 
 def total_maps_dir(name: str) -> Path:
@@ -61,27 +115,40 @@ def ilc_input_dir(name: str, real: int) -> Path:
     )
 
 
-def hilc_output_dir(name: str, *, masked: bool, real: int) -> Path:
+def _sky_real_tags(*, masked: bool, real: int) -> tuple[str, str]:
+    return ("_q5masked" if masked else "", "_r2" if real == 2 else "")
+
+
+def hilc_output_dir(
+    name: str, *, masked: bool, real: int, deproj: DeprojCase = DEPROJ_NONE
+) -> Path:
+    q, r = _sky_real_tags(masked=masked, real=real)
+    dtag = f"_{deproj.dir_tag}" if deproj.dir_tag else ""
     if name == "L1_m9":
-        if masked:
-            return ILC / ("hilc_output_homog_q5masked" if real == 1 else "hilc_output_homog_q5masked_r2")
-        return ILC / ("hilc_output_homog" if real == 1 else "hilc_output_homog_r2")
-    tag = "_q5masked" if masked else ""
-    rtag = "" if real == 1 else "_r2"
-    return ILC / f"hilc_output_homog_{name}{tag}{rtag}"
+        return ILC / f"hilc_output_homog{q}{r}{dtag}"
+    return ILC / f"hilc_output_homog_{name}{q}{r}{dtag}"
 
 
-def hilc_suffix(name: str, *, masked: bool, real: int) -> str:
+def hilc_suffix(
+    name: str, *, masked: bool, real: int, deproj: DeprojCase = DEPROJ_NONE
+) -> str:
     sky = "q5masked" if masked else "fullsky"
-    rtag = "" if real == 1 else "_r2"
-    if name == "L1_m9":
-        return f"_hilc_y_homog_{sky}{rtag}"
-    return f"_hilc_y_homog_{sky}{rtag}_{name}"
+    rtag = "_r2" if real == 2 else ""
+    suf = f"_hilc_y_homog_{sky}{rtag}"
+    if deproj.dir_tag:
+        suf += f"_{deproj.dir_tag}"
+    if name != "L1_m9":
+        suf += f"_{name}"
+    return suf
 
 
-def hilc_ymap(name: str, *, masked: bool, real: int) -> Path:
-    d = hilc_output_dir(name, masked=masked, real=real)
-    return d / f"flamingo_needletILCmap_component_tSZ{hilc_suffix(name, masked=masked, real=real)}.fits"
+def hilc_ymap(
+    name: str, *, masked: bool, real: int, deproj: DeprojCase = DEPROJ_NONE
+) -> Path:
+    d = hilc_output_dir(name, masked=masked, real=real, deproj=deproj)
+    suf = hilc_suffix(name, masked=masked, real=real, deproj=deproj)
+    comp = f"component_tSZ{deproj.wtag}"
+    return d / f"flamingo_needletILCmap_{comp}{suf}.fits"
 
 
 def cluster_mask_binary(name: str) -> Path:
@@ -104,24 +171,38 @@ def freq_map_files(name: str, real: int) -> list[str]:
     ]
 
 
-def yaml_path(name: str, *, masked: bool, real: int) -> Path:
-    sky = "_q5masked" if masked else ""
-    rtag = "" if real == 1 else "_r2"
+def yaml_path(
+    name: str, *, masked: bool, real: int, deproj: DeprojCase = DEPROJ_NONE
+) -> Path:
+    q, r = _sky_real_tags(masked=masked, real=real)
+    slug = f"_{deproj.yaml_slug}" if deproj.yaml_slug else ""
     if name == "L1_m9":
-        return REPO / "configs" / f"hilc_y_flamingo_homog{sky}{rtag}.yml"
-    return REPO / "configs" / f"hilc_y_flamingo_homog_{name}{sky}{rtag}.yml"
+        # Match legacy order: homog[_q5masked][_r2][_deproj_*]
+        return REPO / "configs" / f"hilc_y_flamingo_homog{q}{r}{slug}.yml"
+    return REPO / "configs" / f"hilc_y_flamingo_homog_{name}{slug}{q}{r}.yml"
 
 
-def write_hilc_yaml(name: str, *, masked: bool, real: int) -> Path:
-    """Write a no-deprojection HILC config; identical to L1_m9 except paths."""
+def fig_dir(name: str, deproj: DeprojCase = DEPROJ_NONE) -> Path:
+    return REPO / "figures" / "hilc" / name / deproj.key
+
+
+def fig_combined_dir(deproj: DeprojCase = DEPROJ_NONE) -> Path:
+    return REPO / "figures" / "hilc" / "combined" / deproj.key
+
+
+def write_hilc_yaml(
+    name: str, *, masked: bool, real: int, deproj: DeprojCase = DEPROJ_NONE
+) -> Path:
+    """Write an HILC config; identical ILC settings except paths and deprojection."""
+    deproj_note = "" if deproj.n_deproj == 0 else f" ({deproj.label})"
     lines = [
-        f"# HILC y on {name} homog skies"
+        f"# HILC y on {name} homog skies{deproj_note}"
         + (" with q>5 iMMF holes." if masked else ".")
         + (" Independent white-noise r2." if real == 2 else " Noise realisation r1."),
         "work_in_healpix: 'yes'",
-        f"output_dir: {hilc_output_dir(name, masked=masked, real=real)}/",
+        f"output_dir: {hilc_output_dir(name, masked=masked, real=real, deproj=deproj)}/",
         "output_prefix: flamingo_",
-        f"output_suffix: {hilc_suffix(name, masked=masked, real=real)}",
+        f"output_suffix: {hilc_suffix(name, masked=masked, real=real, deproj=deproj)}",
         "save_weights: 'yes'",
         "save_as: fits",
         f"param_dict_file: {SED_YML}",
@@ -138,8 +219,8 @@ def write_hilc_yaml(name: str, *, masked: bool, real: int) -> Path:
         "beam_FWHM_arcmin: [9.66, 7.22, 4.92, 4.9, 4.67, 4.22]",
         "perform_ILC_at_beam: 10.0",
         "ILC_preserved_comp: tSZ",
-        "N_deproj: 0",
-        "ILC_deproj_comps: []",
+        f"N_deproj: {deproj.n_deproj}",
+        f"ILC_deproj_comps: [{', '.join(deproj.comps)}]",
         "N_maps_xcorr: 0",
     ]
     if masked:
@@ -157,7 +238,22 @@ def write_hilc_yaml(name: str, *, masked: bool, real: int) -> Path:
         "BinSize: 50",
         "",
     ]
-    out = yaml_path(name, masked=masked, real=real)
+    out = yaml_path(name, masked=masked, real=real, deproj=deproj)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines))
+    return out
+
+
+def iter_hilc_configs(
+    *,
+    names: tuple[str, ...] = ALL_RUNS,
+    deprojs: tuple[DeprojCase, ...] = ALL_DEPROJ,
+) -> list[Path]:
+    """All YAML paths for the prescription × deprojection grid."""
+    out: list[Path] = []
+    for name in names:
+        for deproj in deprojs:
+            for masked in (False, True):
+                for real in (1, 2):
+                    out.append(yaml_path(name, masked=masked, real=real, deproj=deproj))
     return out

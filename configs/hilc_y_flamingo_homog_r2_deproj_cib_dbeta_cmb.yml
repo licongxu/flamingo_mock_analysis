@@ -1,4 +1,4 @@
-# Independent white-noise r2, full-sky homog HILC with CIB + δβ + CMB deprojection.
+# HILC y on L1_m9 homog skies (CIB + $\delta\beta$ + CMB). Independent white-noise r2.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_r2_deproj_CIB_CIB_dbeta_CMB/
 output_prefix: flamingo_

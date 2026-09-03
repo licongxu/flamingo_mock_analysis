@@ -1,4 +1,4 @@
-# q>5 hole-masked homog HILC with CIB + δβ + δT deprojection (r2).
+# HILC y on L1_m9 homog skies (CIB + $\delta\beta$ + $\delta T$) with q>5 iMMF holes. Independent white-noise r2.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked_r2_deproj_CIB_CIB_dbeta_CIB_dT/
 output_prefix: flamingo_

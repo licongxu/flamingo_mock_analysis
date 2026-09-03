@@ -2,25 +2,37 @@
 
 ## Per prescription (`L1_m9`, `fgas-8sigma`, `Mstar-1sigma`, `LS8`)
 
-Each subdirectory holds **no-deprojection** HILC diagnostics from
-`scripts/plot_hilc_homog_prescriptions.py`:
+Each prescription has one subdirectory per **deprojection case**:
 
-| File | Content |
-|------|---------|
-| `r1xr2_fig9_fullsky.png` | r1×r2 split cross + CIB/CMB/noise residuals (full sky) |
-| `r1xr2_fig9_q5masked.png` | same, with **that prescription's** q>5 iMMF cluster holes |
-| `y_vs_truth_fullsky.png` | HILC y vs FLAMINGO truth y |
-| `y_vs_truth_q5masked.png` | masked variant |
+| Subfolder | `N_deproj` | Deprojected components |
+|-----------|------------|------------------------|
+| `nodeproj/` | 0 | — |
+| `deproj_cib/` | 1 | CIB |
+| `deproj_cib_dbeta/` | 2 | CIB, δβ |
+| `deproj_cib_dbeta_cmb/` | 3 | CIB, δβ, CMB |
+| `deproj_moments/` | 3 | CIB, δβ, δT |
+
+Within each: `r1xr2_fig9_{fullsky,q5masked}.png`, `y_vs_truth_{fullsky,q5masked}.png`.
 
 Masked runs use `szifi_homog/<prescription>/catalogues/fullsky_splitA_immf_q5.npz`
-(N clusters differs per case).
+(cluster count differs per case).
 
-## Combined overlays (repo root of this folder)
+## Combined overlays
 
-- `r1xr2_fig9_fullsky_all.png` / `r1xr2_fig9_q5masked_all.png` — four-panel stacks
-- `r1xr2_compare_fullsky.png` / `r1xr2_compare_q5masked.png` — overlay curves
+`combined/{deproj}/` — four-panel stacks and prescription overlays for that deproj case.
 
-## L1_m9 deprojection suite (`l1_m9_deproj_suite/`)
+## Legacy L1_m9-only plots
 
-Earlier L1_m9-only plots (CIB deproj, auto Fig. 9, weight comparisons) from
-`scripts/plot_hilc_homog_*.py`. Regenerate with `scripts/run_hilc_execute_replot_all.sh`.
+`L1_m9/legacy_l1m9_scripts/` — earlier single-prescription deproj suite from
+`scripts/plot_hilc_homog_*.py` (auto Fig. 9, weight comparisons, etc.).
+
+## Regenerate
+
+```bash
+# write YAMLs + run missing HILC + plot all deproj cases
+bash scripts/run_hilc_all_prescriptions_deproj.sh
+
+# plot only (skip HILC execution)
+python scripts/plot_hilc_homog_prescriptions.py
+python scripts/plot_hilc_homog_prescriptions.py --deproj deproj_cib deproj_moments
+```

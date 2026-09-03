@@ -1,8 +1,4 @@
-# pyILC HILC Compton-y on FLAMINGO CMB+tSZ+CIB + homogeneous Planck white noise.
-# Same ILC settings as hilc_y_flamingo_npipe_splitA.yml (McCarthy & Hill 2024):
-#   ELLMAX=4096, N_side=2048, perform_ILC_at_beam=10', 6 HFI channels.
-# Inputs are the beamed totals in K_CMB (converted from the µK homog maps).
-# No kSZ. Channel beams = Planck Table I Gaussians (already on the maps).
+# HILC y on L1_m9 homog skies. Noise realisation r1.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog/
 output_prefix: flamingo_

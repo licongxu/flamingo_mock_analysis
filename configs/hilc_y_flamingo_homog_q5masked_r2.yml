@@ -1,5 +1,4 @@
-# Same HILC as hilc_y_flamingo_homog_q5masked.yml, independent white-noise r2.
-# q>5 iMMF clusters masked on the input maps before SHTs.
+# HILC y on L1_m9 homog skies with q>5 iMMF holes. Independent white-noise r2.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked_r2/
 output_prefix: flamingo_

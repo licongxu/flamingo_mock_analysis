@@ -7,11 +7,16 @@ from pathlib import Path
 _SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(_SCRIPTS))
 from hilc_prescriptions import (  # noqa: E402
+    DEPROJ_CIB,
+    DEPROJ_MOMENTS,
+    DEPROJ_NONE,
     PRESCRIPTIONS,
     catalogue_path,
     cluster_mask_binary,
     cmb_path,
     hilc_output_dir,
+    hilc_suffix,
+    hilc_ymap,
     ilc_input_dir,
     tsz_dir,
     write_hilc_yaml,
@@ -41,21 +46,41 @@ def test_r1_r2_ilc_dirs_differ():
         )
 
 
+def test_deproj_output_dirs_differ_by_prescription():
+    for name in PRESCRIPTIONS:
+        d = hilc_output_dir(name, masked=False, real=1, deproj=DEPROJ_CIB)
+        assert name in d.name
+        assert "deproj_CIB" in d.name
+        assert d != hilc_output_dir("L1_m9", masked=False, real=1, deproj=DEPROJ_CIB)
+
+
+def test_l1_m9_deproj_suffix_matches_existing_yaml():
+    assert hilc_suffix("L1_m9", masked=False, real=1, deproj=DEPROJ_NONE) == (
+        "_hilc_y_homog_fullsky"
+    )
+    assert hilc_suffix("L1_m9", masked=False, real=1, deproj=DEPROJ_CIB) == (
+        "_hilc_y_homog_fullsky_deproj_CIB"
+    )
+    assert hilc_suffix("fgas-8sigma", masked=False, real=1, deproj=DEPROJ_CIB) == (
+        "_hilc_y_homog_fullsky_deproj_CIB_fgas-8sigma"
+    )
+
+
 def test_written_yaml_uses_matching_mask_and_noise_split(tmp_path, monkeypatch):
     import hilc_prescriptions as hpmod
 
     monkeypatch.setattr(hpmod, "REPO", tmp_path)
     for name in PRESCRIPTIONS:
-        y1 = hpmod.write_hilc_yaml(name, masked=True, real=1)
-        y2 = hpmod.write_hilc_yaml(name, masked=True, real=2)
+        y1 = hpmod.write_hilc_yaml(name, masked=True, real=1, deproj=DEPROJ_CIB)
+        y2 = hpmod.write_hilc_yaml(name, masked=True, real=2, deproj=DEPROJ_CIB)
         t1, t2 = y1.read_text(), y2.read_text()
         mask = str(cluster_mask_binary(name))
         assert mask in t1 and mask in t2
         assert "/szifi_immf_q5_cluster_mask_nside2048.fits" not in t1
         assert str(ilc_input_dir(name, 1)) in t1
         assert str(ilc_input_dir(name, 2)) in t2
-        assert str(ilc_input_dir(name, 2)) not in t1
-        assert "N_deproj: 0" in t1
+        assert "N_deproj: 1" in t1
+        assert "ILC_deproj_comps: [CIB]" in t1
         assert "TopHatHarmonic" in t1
         assert yaml_path("L1_m9", masked=False, real=1).name == "hilc_y_flamingo_homog.yml"
 
@@ -64,14 +89,20 @@ def test_l1_m9_yaml_paths_keep_unlabeled_homog_dirs():
     src = yaml_path("L1_m9", masked=False, real=1).read_text()
     assert "inputs_nside2048_homog/" in src
     assert "inputs_nside2048_homog_fgas" not in src
-    assert yaml_path("L1_m9", masked=True, real=2).name == (
-        "hilc_y_flamingo_homog_q5masked_r2.yml"
+    assert yaml_path("L1_m9", masked=True, real=2, deproj=DEPROJ_MOMENTS).name == (
+        "hilc_y_flamingo_homog_q5masked_r2_deproj_cib_moments.yml"
     )
+
+
+def test_ymap_path_includes_deproject_tag():
+    p = hilc_ymap("L1_m9", masked=False, real=1, deproj=DEPROJ_CIB)
+    assert "deproject_CIB" in p.name
+    assert "deproj_CIB" in p.name
 
 
 def test_plot_script_uses_each_catalogue():
     src = (_SCRIPTS / "plot_hilc_homog_prescriptions.py").read_text()
     assert "catalogue_path" in src
     assert "cluster_mask_apo" in src
-    assert "fgas-8sigma" in src or "PRESCRIPTIONS" in src or "ALL_RUNS" in src
+    assert "ALL_DEPROJ" in src
     assert "components/tsz/test" not in src
