@@ -77,7 +77,7 @@ noise and the PR4 footprint matter.
 |---|---|---|
 | **tSZ** | Yang et al. Compton-*y* lightcone shells (`lensed_tSZ_rot_same_rot.hdf5`) summed to a full-sky *y* map, then converted per channel with the non-relativistic *f*(*x*) = *x* coth(*x*/2) − 4, ΔT = T_CMB·*y*·*f*(*x*), T_CMB = 2.7255 K | `src/flamingo_mock/tsz.py`; `spectral.py:36-51`; `config.py:18,21` |
 | **CIB** | Released bandpass-convolved maps at 217/353/545/857 GHz (Jy/sr). 100/143 GHz are *approximated*: exact released band → use as is; between two released bands → log-*ν* interpolation of *I*_ν; outside the released range → scale the nearest band by the three-parameter greybody at *z*_eff | `cib.py:1-15,27-42,80`; `spectral.py:86,137` |
-| CIB SED | β_d = 1.65, *T*₀ = 35.14 K, α = 0.0, *z*_eff = 1.5 (Yang26 §3.5.1) | `config.py:45-49` |
+| CIB SED | β_d = 1.65, *T*₀ = 35.14 K, α = 0.0, *z*_eff = 1.90 (L1_m9 mean-ratio fit) | `config.py:45-50` |
 | **CMB** | **Gaussian random field**: CAMB **unlensed** scalar *C*_ℓ^TT at the FLAMINGO cosmology → `hp.synalm` realisation (**seed 42**, *N*_side = 4096, no pixel window) → lensed with the FLAMINGO convergence map κ via `pixell.lensing.lens_map_curved` (κ → φ with φ_ℓₘ = 2κ_ℓₘ/[ℓ(ℓ+1)], ℓ ≤ 2 zeroed; intermediate CAR grid res = π/(2·N_side); back to HEALPix with `method="harm"`) | `cmb.py:27-45` (CAMB), `:48-56` (κ→φ), `:58-86` (realise+lens; `:68-69` seed/synalm, `:74` lensing, `:83` reproject); `scripts/make_lensed_cmb_ls8.py:23` |
 | CMB cosmology | D3A: *h*=0.681, Ω_m=0.306, Ω_b=0.0486, Σm_ν=0.06 eV, *A*_s=2.099e-9, *n*_s=0.967 · LS8: *h*=0.682, Ω_m=0.305, Ω_b=0.0473, *A*_s=1.836e-9, *n*_s=0.965 | `config.py:23-41` |
 | **Noise** | Homogeneous **pixel-white** Gaussian map per channel, `rng.normal(0, σ_pix)`, independent seed 42 + ν per frequency (channels uncorrelated). Verified flat: median *C*_ℓ over 1000 ≤ ℓ ≤ 2000 is 1.000 ± 0.004 of the table *N*_ℓ | `notebooks/homogeneous_planck_white_noise.ipynb` cells 4, 6, 12, 13 |
@@ -207,7 +207,7 @@ figure `figures/szifi_homog_cnc_binned_Nq_qgt5_immf.{png,pdf}`.
   (`run.py:119,315-318,427-430`).
 - The deprojected CIB SED uses the **SZiFi/*Planck* defaults, not the FLAMINGO CIB model**:
   α_cib = 0.36, *T*₀_cib = 20.7 K, β_cib = 1.6, *z*_eff_cib = 0.2 (`run.py:139-142`) — compare the
-  FLAMINGO values β_d = 1.65, *T*₀ = 35.14 K, *z*_eff = 1.5 (`config.py:45-49`).
+  FLAMINGO values β_d = 1.65, *T*₀ = 35.14 K, *z*_eff = 1.90 (`config.py:45-50`).
 - Only ever run on the **NPIPE footprint** tiles (`szifi/catalogues/footprint_splitA_scimmf_q5.npz`,
   10 Aug). If sciMMF is claimed as a FLAMINGO result it must first be re-run on the `homog`
   full-sky tiles *and* the deprojection SED reconciled with the FLAMINGO CIB model.

@@ -125,8 +125,8 @@ def test_spectral_pipeline_real_functions():
     I = np.array([1.0], dtype=np.float64)  # Jy/sr
     t = intensity_to_uK(I, 353.0)
     assert t[0] > 0
-    # SED ratio at z_eff=1.5: 100 GHz fainter than 217 GHz greybody
-    r = sed_ratio(100.0, 217.0, z_eff=1.5)
+    # SED ratio at z_eff=1.90: 100 GHz fainter than 217 GHz greybody
+    r = sed_ratio(100.0, 217.0, z_eff=1.90)
     assert 0 < r < 1
 
 

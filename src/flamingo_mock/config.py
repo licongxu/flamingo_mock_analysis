@@ -46,7 +46,8 @@ CIB_BETA_D = 1.65
 CIB_T0 = 35.14  # K
 CIB_ALPHA = 0.0
 # Effective redshift used when scaling CIB intensity out of the released bands.
-CIB_Z_EFF = 1.5
+# 1.90 is the L1_m9 sky-mean greybody fit (notebooks/fit_cib_z_eff.ipynb).
+CIB_Z_EFF = 1.90
 
 # Input files (relative to the lightcone directory). All are lensed, share the
 # same shell rotations, Nside=4096 RING float32.
