@@ -33,7 +33,7 @@ sys.modules["hilc_r1xr2_diag"] = diag
 _spec.loader.exec_module(diag)
 
 sys.path.insert(0, str(ROOT / "scripts"))
-from hilc_prescriptions import cluster_mask_apo  # noqa: E402
+from hilc_prescriptions import cache_stale, cluster_mask_apo  # noqa: E402
 
 NSIDE = diag.NSIDE
 LMAX = diag.LMAX
@@ -134,11 +134,25 @@ def ilc_bias_curves(cl_tt: np.ndarray, n_deproj: int, fsky: float):
 
 def load_or_compute(case: Case, bl, good, w_apo: np.ndarray, fsky: float) -> dict:
     stored: dict[str, np.ndarray] = {}
-    if case.cl_cache.is_file():
+    cl_sources = [MASK_APO, case.ymap_r1, case.ymap_r2, diag.TRUTH]
+    if not cache_stale(case.cl_cache, cl_sources):
         z = np.load(case.cl_cache)
         stored.update({k: z[k] for k in z.files})
         print("loaded", case.cl_cache)
-    if case.res_cache.is_file():
+    weight_pattern = f"flamingo_weightvector_scale*_component_tSZ{case.wtag}.txt"
+    weight_sources = sorted(case.wdir_r1.glob(weight_pattern))
+    weight_sources += sorted(case.wdir_r2.glob(weight_pattern))
+    signal_sources = [diag.CMB_MAP]
+    signal_sources += [
+        diag.CIB_DIR / f"CIB_deltaT_{f}GHz_nside4096.fits" for f in diag.FREQS
+    ]
+    noise_sources = [
+        diag.NOISE_DIR / f"{f}GHz" / f"white_noise_{f}GHz_nside{NSIDE}_uK{tag}.fits"
+        for f in diag.FREQS
+        for tag in ("", "_r2")
+    ]
+    res_sources = [MASK_APO, *weight_sources, *signal_sources, *noise_sources]
+    if not cache_stale(case.res_cache, res_sources):
         z = np.load(case.res_cache)
         stored.update({k: z[k] for k in z.files})
         print("loaded", case.res_cache)

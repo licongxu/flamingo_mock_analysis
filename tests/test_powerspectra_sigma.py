@@ -139,10 +139,14 @@ def test_hilc_plot_scripts_use_l1_m9_not_test():
     )
     for name in files:
         src = (root / name).read_text()
-        assert "components/tsz/L1_m9" in src, name
+        assert (
+            "components/tsz/L1_m9" in src or 'tsz_dir("L1_m9")' in src
+        ), name
         assert "components/tsz/test" not in src, name
         if "CIB_DIR" in src:
-            assert "components/cib/L1_m9" in src, name
+            assert (
+                "components/cib/L1_m9" in src or 'cib_dir("L1_m9")' in src
+            ), name
             assert "components/cib/test" not in src, name
 
 

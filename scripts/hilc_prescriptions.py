@@ -80,6 +80,16 @@ ALL_DEPROJ = (
 DEPROJ_BY_KEY = {d.key: d for d in ALL_DEPROJ}
 
 
+def cache_stale(cache: Path, sources: list[Path]) -> bool:
+    if not cache.is_file():
+        return True
+    cache_mtime = cache.stat().st_mtime
+    return any(
+        source.is_file() and source.stat().st_mtime > cache_mtime
+        for source in sources
+    )
+
+
 def total_maps_dir(name: str) -> Path:
     return SYNTH / "total_maps" / name
 

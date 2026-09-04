@@ -38,6 +38,7 @@ from hilc_prescriptions import (  # noqa: E402
     DeprojCase,
     ILC,
     LABELS,
+    cache_stale,
     catalogue_path,
     cib_dir,
     cluster_mask_apo,
@@ -79,13 +80,6 @@ def _signal_cache_path(name: str) -> Path:
     return PLOT_CACHE / f"signal_alms_{name}_lmax{LMAX}.npz"
 
 
-def _cache_stale(cache_p: Path, sources: list[Path]) -> bool:
-    if not cache_p.is_file():
-        return True
-    cache_mtime = cache_p.stat().st_mtime
-    return any(p.is_file() and p.stat().st_mtime > cache_mtime for p in sources)
-
-
 def _save_signal_alms(cache_p: Path, cmb_alm, tsz_alms, cib_alms) -> None:
     cache_p.parent.mkdir(parents=True, exist_ok=True)
     payload = {"cmb_alm": cmb_alm}
@@ -111,7 +105,7 @@ def _load_signal_alms_cache(cache_p: Path) -> dict[str, tuple]:
 def signal_alms(name: str) -> dict[str, tuple]:
     cache_p = _signal_cache_path(name)
     sources = _signal_source_paths(name)
-    if not _cache_stale(cache_p, sources):
+    if not cache_stale(cache_p, sources):
         print(f"loaded signal alms cache ({name})", flush=True)
         return _load_signal_alms_cache(cache_p)
 

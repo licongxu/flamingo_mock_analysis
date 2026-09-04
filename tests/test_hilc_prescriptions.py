@@ -1,6 +1,7 @@
 """HILC YAML for baryonic / LS8 variants must not reuse the L1_m9 mask or totals."""
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from hilc_prescriptions import (  # noqa: E402
     DEPROJ_MOMENTS,
     DEPROJ_NONE,
     PRESCRIPTIONS,
+    cache_stale,
     catalogue_path,
     cluster_mask_binary,
     cmb_path,
@@ -22,6 +24,17 @@ from hilc_prescriptions import (  # noqa: E402
     write_hilc_yaml,
     yaml_path,
 )
+
+
+def test_cache_stale_tracks_newer_inputs(tmp_path):
+    source, cache = tmp_path / "source", tmp_path / "cache"
+    source.touch()
+    cache.touch()
+    os.utime(source, ns=(1, 1))
+    os.utime(cache, ns=(2, 2))
+    assert not cache_stale(cache, [source])
+    os.utime(source, ns=(3, 3))
+    assert cache_stale(cache, [source])
 
 
 def test_catalogues_and_masks_are_per_prescription():
