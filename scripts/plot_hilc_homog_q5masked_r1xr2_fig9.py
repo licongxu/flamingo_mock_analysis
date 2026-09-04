@@ -32,6 +32,9 @@ assert _spec.loader is not None
 sys.modules["hilc_r1xr2_diag"] = diag
 _spec.loader.exec_module(diag)
 
+sys.path.insert(0, str(ROOT / "scripts"))
+from hilc_prescriptions import cluster_mask_apo  # noqa: E402
+
 NSIDE = diag.NSIDE
 LMAX = diag.LMAX
 N_FREQ = 6
@@ -40,10 +43,10 @@ ELL_PLOT_MAX = diag.ELL_PLOT_MAX
 ELL_MIN = diag.ELL_MIN
 ELL_MAX = diag.ELL_MAX
 ELL_EFF = diag.ELL_EFF
-FIG_DIR = ROOT / "figures"
+FIG_DIR = ROOT / "figures" / "hilc" / "l1_m9_deproj_suite"
 ILC = diag.ILC
 YLIM = (1.0e-17, 3.0e-9)
-MASK_APO = ILC / "szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
+MASK_APO = cluster_mask_apo("L1_m9")
 
 N_DEPROJ = {
     "": 0,

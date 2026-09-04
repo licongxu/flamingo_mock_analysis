@@ -17,6 +17,19 @@ from flamingo_mock.config import BEAM_FWHM_ARCMIN
 from flamingo_mock.powerspectra import bin_cl, dl_from_cl
 from flamingo_mock.spectral import dB_dT_Jy_per_sr_per_K
 
+_SCRIPTS = Path(__file__).resolve().parent
+import sys
+
+sys.path.insert(0, str(_SCRIPTS))
+from hilc_prescriptions import (  # noqa: E402
+    ILC,
+    cib_dir,
+    cluster_mask_apo,
+    hilc_output_dir,
+    hilc_ymap,
+    tsz_dir,
+)
+
 NSIDE = 2048
 LMAX = 4096
 FWHM_ILC = 10.0
@@ -26,23 +39,14 @@ BINSIZE, BEAM_CRIT = 50, 1.0e-3
 FREQS = (100, 143, 353, 217, 545, 857)
 NELL_UK2 = {100: 5.07e-4, 143: 9.21e-5, 353: 2.00e-3, 217: 1.85e-4, 545: 5.51e-2, 857: 30.9}
 
-YMAP = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked"
-    "/flamingo_needletILCmap_component_tSZ_hilc_y_homog_q5masked.fits"
-)
-TRUTH = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/L1_m9"
-    "/compton_y_nside4096.fits"
-)
-MASK = Path(
-    "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc"
-    "/szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
-)
-WDIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked")
-WDIR_FULL = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog")
-CIB_DIR = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/cib/L1_m9")
+YMAP = hilc_ymap("L1_m9", masked=True, real=1)
+TRUTH = tsz_dir("L1_m9") / "compton_y_nside4096.fits"
+MASK = cluster_mask_apo("L1_m9")
+WDIR = hilc_output_dir("L1_m9", masked=True, real=1)
+WDIR_FULL = hilc_output_dir("L1_m9", masked=False, real=1)
+CIB_DIR = cib_dir("L1_m9")
 SED_YML = "/scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml"
-FIG_DIR = Path("/scratch/scratch-lxu/flamingo_mock_analysis/figures")
+FIG_DIR = Path("/scratch/scratch-lxu/flamingo_mock_analysis/figures") / "hilc" / "l1_m9_deproj_suite"
 
 
 def hilc_weights(wdir: Path, lmax: int) -> tuple[np.ndarray, list]:

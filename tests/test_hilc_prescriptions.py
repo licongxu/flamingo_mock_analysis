@@ -100,6 +100,29 @@ def test_ymap_path_includes_deproject_tag():
     assert "deproj_CIB" in p.name
 
 
+def test_build_mask_defaults_to_l1_m9_fiducial():
+    src = (_SCRIPTS / "build_szifi_q5_cluster_mask.py").read_text()
+    assert 'default="L1_m9"' in src
+    assert "L2P8_TEST_CAT" in src
+    assert "LEGACY_CAT" not in src
+
+
+def test_l1_m9_fiducial_catalogue_has_2509_detections():
+    import numpy as np
+
+    cat = np.load(catalogue_path("L1_m9"))
+    assert int(cat["q_opt"].size) == 2509
+
+
+def test_l1_m9_written_yaml_uses_fiducial_mask(tmp_path, monkeypatch):
+    import hilc_prescriptions as hpmod
+
+    monkeypatch.setattr(hpmod, "REPO", tmp_path)
+    y = hpmod.write_hilc_yaml("L1_m9", masked=True, real=1, deproj=DEPROJ_NONE)
+    mask = str(cluster_mask_binary("L1_m9"))
+    assert mask in y.read_text()
+
+
 def test_plot_script_uses_each_catalogue():
     src = (_SCRIPTS / "plot_hilc_homog_prescriptions.py").read_text()
     assert "catalogue_path" in src

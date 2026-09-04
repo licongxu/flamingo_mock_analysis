@@ -305,8 +305,10 @@ This is the *q* behind the FLAMINGO numbers currently in the paper
 `scripts/build_szifi_q5_cluster_mask.py` — the pipeline version of the masking geometry already
 described in `subsec:syntheticdata`:
 
-- Source catalogue: `szifi_homog/catalogues/homog_immf_fullsky_splitA_immf_q5.npz`, *q* > 5
-  (`:14-15,36-38`).
+- Source catalogue (fiducial L1_m9): `szifi_homog/L1_m9/catalogues/fullsky_splitA_immf_q5.npz`,
+  **2509** detections with *q* > 5 (`build_szifi_q5_cluster_mask.py`, default `--prescription L1_m9`).
+  Other prescriptions use `szifi_homog/<name>/catalogues/...` (LS8 1561, M\*−1σ 2634,
+  *f*_gas−8σ 2125). Legacy `homog_immf_fullsky` (2364) is L2p8_m9 test-only (`--l2p8-test`).
 - Hole radius **max(4 θ₅₀₀, 2 × FWHM)** with FWHM = 10 arcmin (`:16,42-45`) — identical in form to
   θ_max = max(4θ₅₀₀, 2θ_FWHM) in the synthetic section.
 - Apodisation: `nmt.mask_apodization(mask, 0.25, apotype="C2")` → 0.25° cosine taper (`:17,56`),
@@ -465,11 +467,10 @@ Logs of the actual runs: `logs/szifi_homog_{L1_m9,LS8,Mstar-1sigma,fgas-8sigma}_
 
 ## 10. Things to settle before writing this section
 
-1. **Two fiducial catalogues disagree.**
-   `szifi_homog/catalogues/homog_immf_fullsky_splitA_immf_q5.npz` has **2364** detections;
-   `szifi_homog/L1_m9/catalogues/fullsky_splitA_immf_q5.npz` has **2509**. Both claim full-sky
-   L1_m9. Pick one (the per-prescription tree looks authoritative, `total_maps/L1_m9`) and ignore
-   or remove the older root catalogue — or explain why both exist.
+1. **Fiducial vs L2p8 test catalogues.**
+   L1_m9 fiducial uses `szifi_homog/L1_m9/catalogues/fullsky_splitA_immf_q5.npz` (**2509**).
+   Root `homog_immf_fullsky` (**2364**) is the old L2p8_m9 smoke-test catalogue only
+   (`build_szifi_q5_cluster_mask.py --l2p8-test`); it must not drive fiducial masks or HILC.
 2. **Which *q* goes into the CNC?** §5's `q_from_aperture` (current text and figures) vs §3's blind
    `q_opt`. If both appear, the paper must state explicitly that they are different estimators —
    the counts and the physics claims differ substantially.

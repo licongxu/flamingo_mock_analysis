@@ -36,6 +36,7 @@ from hilc_prescriptions import (  # noqa: E402
     ALL_RUNS,
     DEPROJ_NONE,
     DeprojCase,
+    ILC,
     LABELS,
     catalogue_path,
     cib_dir,
@@ -64,23 +65,70 @@ ELL_PLOT_MAX = diag.ELL_PLOT_MAX
 ELL_MIN, ELL_MAX, ELL_EFF = diag.ELL_MIN, diag.ELL_MAX, diag.ELL_EFF
 FREQS = diag.FREQS
 YLIM = (1.0e-17, 3.0e-9)
+PLOT_CACHE = ILC / "plot_cache"
+
+
+def _signal_source_paths(name: str) -> list[Path]:
+    paths = [cmb_path(name)]
+    paths += [tsz_dir(name) / f"tSZ_deltaT_{f}GHz_nside4096.fits" for f in FREQS]
+    paths += [cib_dir(name) / f"CIB_deltaT_{f}GHz_nside4096.fits" for f in FREQS]
+    return paths
+
+
+def _signal_cache_path(name: str) -> Path:
+    return PLOT_CACHE / f"signal_alms_{name}_lmax{LMAX}.npz"
+
+
+def _cache_stale(cache_p: Path, sources: list[Path]) -> bool:
+    if not cache_p.is_file():
+        return True
+    cache_mtime = cache_p.stat().st_mtime
+    return any(p.is_file() and p.stat().st_mtime > cache_mtime for p in sources)
+
+
+def _save_signal_alms(cache_p: Path, cmb_alm, tsz_alms, cib_alms) -> None:
+    cache_p.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"cmb_alm": cmb_alm}
+    for i, a in enumerate(tsz_alms):
+        payload[f"tsz_alm_{i}"] = a
+    for i, a in enumerate(cib_alms):
+        payload[f"cib_alm_{i}"] = a
+    np.savez(cache_p, **payload)
+    print("cached", cache_p, flush=True)
+
+
+def _load_signal_alms_cache(cache_p: Path) -> dict[str, tuple]:
+    z = np.load(cache_p)
+    n_tsz = sum(1 for k in z.files if k.startswith("tsz_alm_"))
+    n_cib = sum(1 for k in z.files if k.startswith("cib_alm_"))
+    return {
+        "cmb": (z["cmb_alm"],),
+        "tsz": tuple(z[f"tsz_alm_{i}"] for i in range(n_tsz)),
+        "cib": tuple(z[f"cib_alm_{i}"] for i in range(n_cib)),
+    }
+
+
+def signal_alms(name: str) -> dict[str, tuple]:
+    cache_p = _signal_cache_path(name)
+    sources = _signal_source_paths(name)
+    if not _cache_stale(cache_p, sources):
+        print(f"loaded signal alms cache ({name})", flush=True)
+        return _load_signal_alms_cache(cache_p)
+
+    print(f"map2alm CMB / tSZ / CIB ({name}) ...", flush=True)
+    cmb = _load_uk_to_k(cmb_path(name))
+    tsz_maps = [_load_uk_to_k(tsz_dir(name) / f"tSZ_deltaT_{f}GHz_nside4096.fits") for f in FREQS]
+    cib_maps = [_load_uk_to_k(cib_dir(name) / f"CIB_deltaT_{f}GHz_nside4096.fits") for f in FREQS]
+    cmb_alm = hp.map2alm(cmb, lmax=LMAX, iter=0)
+    tsz_alms = diag._map2alm_list(tsz_maps)
+    cib_alms = diag._map2alm_list(cib_maps)
+    _save_signal_alms(cache_p, cmb_alm, tsz_alms, cib_alms)
+    return {"cmb": (cmb_alm,), "tsz": tuple(tsz_alms), "cib": tuple(cib_alms)}
 
 
 def _load_uk_to_k(path: Path) -> np.ndarray:
     m = diag.load_map(path) * 1e-6
     return m - np.mean(m)
-
-
-def signal_alms(name: str) -> dict[str, tuple]:
-    print(f"map2alm CMB / tSZ / CIB ({name}) ...", flush=True)
-    cmb = _load_uk_to_k(cmb_path(name))
-    tsz = [_load_uk_to_k(tsz_dir(name) / f"tSZ_deltaT_{f}GHz_nside4096.fits") for f in FREQS]
-    cib = [_load_uk_to_k(cib_dir(name) / f"CIB_deltaT_{f}GHz_nside4096.fits") for f in FREQS]
-    return {
-        "cmb": (hp.map2alm(cmb, lmax=LMAX, iter=0),),
-        "tsz": tuple(diag._map2alm_list(tsz)),
-        "cib": tuple(diag._map2alm_list(cib)),
-    }
 
 
 def masked_cl(a: np.ndarray, b: np.ndarray, w: np.ndarray) -> np.ndarray:
@@ -184,15 +232,72 @@ def load_pack(
 
 
 def _curve_and_bins(ax, ells, sl, cl, dl, *, color, marker, label, lw=1.3):
-    ax.plot(ells[sl], np.abs(dl_from_cl(ells, cl))[sl], color=color, lw=lw, alpha=0.55, zorder=2)
+    ax.plot(
+        ells[sl], np.abs(dl_from_cl(ells, cl))[sl],
+        color=color, lw=lw, alpha=0.55, zorder=2, label=label,
+    )
     mag = np.abs(dl)
     pos = np.asarray(dl) >= 0
-    ax.plot(ELL_EFF[pos], mag[pos], marker, color=color, ms=5.0, ls="none", zorder=4, label=label)
+    ax.plot(ELL_EFF[pos], mag[pos], marker, color=color, ms=5.0, ls="none", zorder=4)
     if np.any(~pos):
         ax.plot(
             ELL_EFF[~pos], mag[~pos], marker, color=color, ms=5.5, ls="none",
             mfc="none", mew=1.5, zorder=4,
         )
+
+
+def _positive_dl(*arrays) -> np.ndarray:
+    vals = np.concatenate([np.ravel(a) for a in arrays])
+    return vals[np.isfinite(vals) & (vals > 0)]
+
+
+def _tight_log_ylim(
+    vals: np.ndarray,
+    *,
+    pad_lo: float = 0.75,
+    pad_hi: float = 1.35,
+    min_span_dex: float = 0.35,
+    fallback: tuple[float, float] = YLIM,
+) -> tuple[float, float]:
+    if vals.size == 0:
+        return fallback
+    lo, hi = float(np.min(vals)), float(np.max(vals))
+    lo = max(lo * pad_lo, fallback[0])
+    hi = min(hi * pad_hi, fallback[1])
+    if hi <= lo:
+        hi = lo * 10**min_span_dex
+    if np.log10(hi / lo) < min_span_dex:
+        mid = np.sqrt(lo * hi)
+        lo = mid / 10 ** (min_span_dex / 2)
+        hi = mid * 10 ** (min_span_dex / 2)
+    return lo, hi
+
+
+def _residual_ylim(
+    rows: list[tuple[str, dict]], ells: np.ndarray, sl: slice, ck: str, dk: str
+) -> tuple[float, float]:
+    vals = _positive_dl(
+        *[
+            x
+            for _, d in rows
+            for x in (np.abs(dl_from_cl(ells, d[ck])[sl]), np.abs(d[dk]))
+        ]
+    )
+    return _tight_log_ylim(vals)
+
+
+def _cross_ylim(rows: list[tuple[str, dict]], ells: np.ndarray, sl: slice) -> tuple[float, float]:
+    vals = _positive_dl(
+        *[
+            x
+            for _, d in rows
+            for x in (
+                np.abs(dl_from_cl(ells, d["cl_tt"])[sl]),
+                np.abs(d["dl_cross"]),
+            )
+        ]
+    )
+    return _tight_log_ylim(vals)
 
 
 def plot_fig9(rows: list[tuple[str, dict]], *, masked: bool, deproj: DeprojCase, out: Path) -> None:
@@ -267,6 +372,70 @@ def plot_y_vs_truth(name: str, *, masked: bool, deproj: DeprojCase, pack: dict, 
     print("wrote", out)
 
 
+def plot_residual_overlays(
+    rows: list[tuple[str, dict]], *, masked: bool, deproj: DeprojCase, out_dir: Path
+) -> None:
+    """Overlay CIB/CMB/noise residuals for all prescriptions (same ILC scheme).
+
+    Writes three single-panel plots plus one 3-panel stack under *out_dir*:
+      cib_residual_{fullsky,q5masked}.png
+      cmb_residual_{fullsky,q5masked}.png
+      noise_residual_{fullsky,q5masked}.png
+      residual_overlay_{fullsky,q5masked}.png
+    """
+    components = [
+        ("cl_cib_d", "dl_cib", r"CIB residual", "^", "cib_residual"),
+        ("cl_cmb_d", "dl_cmb", r"CMB residual", "v", "cmb_residual"),
+        ("cl_n_d", "dl_n", r"noise residual", "+", "noise_residual"),
+    ]
+    colors = {"L1_m9": "k", "fgas-8sigma": "C0", "Mstar-1sigma": "C3", "LS8": "C2"}
+    ells = np.arange(LMAX + 1, dtype=np.float64)
+    sl = slice(2, ELL_PLOT_MAX + 1)
+    tag = "q5masked" if masked else "fullsky"
+    sky = r"$q>5$ masked" if masked else "full sky"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def _draw(ax, ck: str, dk: str, title: str, marker: str, ylim: tuple[float, float]) -> None:
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(ELL_EFF[0], ELL_PLOT_MAX)
+        ax.set_ylim(*ylim)
+        for name, d in rows:
+            _curve_and_bins(
+                ax, ells, sl, d[ck], d[dk],
+                color=colors[name], marker=marker, label=LABELS[name], lw=1.4,
+            )
+        ax.set_ylabel(r"$D_\ell$")
+        ax.set_xlabel(r"$\ell$")
+        ax.set_title(rf"{title} ({sky}, {deproj.label})")
+        ax.legend(frameon=False, fontsize=8, loc="lower left")
+
+    for ck, dk, title, marker, stem in components:
+        ylim = _residual_ylim(rows, ells, sl, ck, dk)
+        fig, ax = plt.subplots(figsize=(8.4, 5.0))
+        _draw(ax, ck, dk, title, marker, ylim)
+        out = out_dir / f"{stem}_{tag}.png"
+        fig.tight_layout()
+        fig.savefig(out, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print("wrote", out)
+
+    fig, axes = plt.subplots(3, 1, figsize=(8.6, 9.0), sharex=True)
+    for ax, (ck, dk, title, marker, _) in zip(axes, components):
+        _draw(ax, ck, dk, title, marker, _residual_ylim(rows, ells, sl, ck, dk))
+        ax.set_xlabel("")
+    axes[-1].set_xlabel(r"$\ell$")
+    fig.suptitle(
+        rf"Weighted residuals — all prescriptions ({sky}, {deproj.label})",
+        y=1.01, fontsize=11,
+    )
+    out = out_dir / f"residual_overlay_{tag}.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote", out)
+
+
 def plot_compare(rows: list[tuple[str, dict]], *, masked: bool, deproj: DeprojCase, out: Path) -> None:
     fig, ax = plt.subplots(figsize=(8.4, 5.0))
     ax.set_xscale("log")
@@ -284,7 +453,7 @@ def plot_compare(rows: list[tuple[str, dict]], *, masked: bool, deproj: DeprojCa
             marker="o", ms=4.5, label=LABELS[name],
         )
     ax.set_xlim(ELL_EFF[0], ELL_PLOT_MAX)
-    ax.set_ylim(*YLIM)
+    ax.set_ylim(*_cross_ylim(rows, ells, sl))
     ax.set_xlabel(r"$\ell$")
     ax.set_ylabel(r"$D_\ell$")
     sky = r"$q>5$ masked" if masked else "full sky"
@@ -306,6 +475,11 @@ def main() -> None:
         choices=[d.key for d in ALL_DEPROJ],
         help="Deprojection cases to plot (default: all)",
     )
+    p.add_argument(
+        "--combined-only",
+        action="store_true",
+        help="Skip per-prescription figures; only write combined overlays",
+    )
     args = p.parse_args()
     deprojs = [d for d in ALL_DEPROJ if d.key in args.deproj]
     names = list(ALL_RUNS)
@@ -324,22 +498,32 @@ def main() -> None:
                 continue
             sub = fig_dir(name, deproj)
             if pack_f is not None:
-                plot_fig9([(name, pack_f)], masked=False, deproj=deproj, out=sub / "r1xr2_fig9_fullsky.png")
-                plot_y_vs_truth(name, masked=False, deproj=deproj, pack=pack_f, out=sub / "y_vs_truth_fullsky.png")
+                if not args.combined_only:
+                    plot_fig9([(name, pack_f)], masked=False, deproj=deproj, out=sub / "r1xr2_fig9_fullsky.png")
+                    plot_y_vs_truth(name, masked=False, deproj=deproj, pack=pack_f, out=sub / "y_vs_truth_fullsky.png")
                 full_rows.append((name, pack_f))
             if pack_m is not None:
-                plot_fig9([(name, pack_m)], masked=True, deproj=deproj, out=sub / "r1xr2_fig9_q5masked.png")
-                plot_y_vs_truth(name, masked=True, deproj=deproj, pack=pack_m, out=sub / "y_vs_truth_q5masked.png")
+                if not args.combined_only:
+                    plot_fig9([(name, pack_m)], masked=True, deproj=deproj, out=sub / "r1xr2_fig9_q5masked.png")
+                    plot_y_vs_truth(name, masked=True, deproj=deproj, pack=pack_m, out=sub / "y_vs_truth_q5masked.png")
                 mask_rows.append((name, pack_m))
             del sig
         if full_rows:
             comb = fig_combined_dir(deproj)
-            plot_fig9(full_rows, masked=False, deproj=deproj, out=comb / "r1xr2_fig9_fullsky_all.png")
+            if not args.combined_only:
+                plot_fig9(full_rows, masked=False, deproj=deproj, out=comb / "r1xr2_fig9_fullsky_all.png")
             plot_compare(full_rows, masked=False, deproj=deproj, out=comb / "r1xr2_compare_fullsky.png")
+            plot_residual_overlays(
+                full_rows, masked=False, deproj=deproj, out_dir=comb
+            )
         if mask_rows:
             comb = fig_combined_dir(deproj)
-            plot_fig9(mask_rows, masked=True, deproj=deproj, out=comb / "r1xr2_fig9_q5masked_all.png")
+            if not args.combined_only:
+                plot_fig9(mask_rows, masked=True, deproj=deproj, out=comb / "r1xr2_fig9_q5masked_all.png")
             plot_compare(mask_rows, masked=True, deproj=deproj, out=comb / "r1xr2_compare_q5masked.png")
+            plot_residual_overlays(
+                mask_rows, masked=True, deproj=deproj, out_dir=comb
+            )
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@ from flamingo_mock.szifi.tiles import select_all_tile_ids  # noqa: E402
 import szifi_jax  # noqa: E402
 
 HOMOG_ROOT = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog")
-REF_CAT = HOMOG_ROOT / "catalogues" / "homog_immf_fullsky_splitA_immf_q5.npz"
+REF_CAT = HOMOG_ROOT / "catalogues" / "homog_immf_fullsky_splitA_immf_q5.npz"  # L2p8 test only (2364)
 YMAP = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/components/tsz/"
     "compton_y_nside4096.fits"

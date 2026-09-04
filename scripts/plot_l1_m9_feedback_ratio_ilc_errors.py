@@ -34,7 +34,9 @@ COV = FLAMINGO_REPO / "data_paper" / "covariance"
 FIG_DIR = ROOT / "figures"
 FWHM_ILC = 10.0
 LMAX = 4096
-FSKY_Q5_THEORY = 0.9493476504305253
+
+sys.path.insert(0, str(ROOT / "scripts"))
+from hilc_prescriptions import cluster_mask_apo  # noqa: E402
 
 # Paper 18-bin edges (inclusive).  sigma_dl_cross_binned uses exclusive hi.
 ELL_MIN_18 = np.array(
@@ -78,7 +80,12 @@ FIG9_CIB = {
     ),
 }
 
-MASK_APO = ILC / "szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
+MASK_APO = cluster_mask_apo("L1_m9")
+
+
+def _fsky_q5_theory() -> float:
+    w = np.asarray(hp.read_map(str(MASK_APO), dtype=np.float64))
+    return float(np.mean(w**2))
 
 
 def _load_ratio_mod():
@@ -166,7 +173,7 @@ def relative_ilc_plus_t(
 ) -> np.ndarray:
     sky = "fullsky" if kind == "fullsky" else "q5"
     sig_ilc = ilc_sigma_18(ILC_NPZ[(deproj, sky)], fsky_ilc[sky], bl, good)
-    fsky_t = 1.0 if kind == "fullsky" else FSKY_Q5_THEORY
+    fsky_t = 1.0 if kind == "fullsky" else _fsky_q5_theory()
     sig_t = trispectrum_sigma(kind, theory_dl(kind), fsky_t)
     sig = np.sqrt(sig_ilc**2 + sig_t**2)
     return sig * 1.0e12 / dl_fid_1e12
@@ -387,7 +394,7 @@ def m_stat_q5(deproj: str, fsky_ilc: float, bl, good) -> np.ndarray:
         np.load(COV / "cov_full_L1_m9_customgnfw_bestfit_masked_qgt5_Dl_yy_binned_18.npy"),
         dtype=np.float64,
     )
-    sig_g = knox_sigma(theory_dl(5.0), FSKY_Q5_THEORY)
+    sig_g = knox_sigma(theory_dl(5.0), _fsky_q5_theory())
     m_t = cov.copy()
     np.fill_diagonal(m_t, np.clip(np.diag(m_t) - sig_g**2, 0.0, None))
     return np.diag(sig_ilc**2) + m_t
@@ -749,7 +756,7 @@ def main() -> None:
     rel_bands = {}
     for sky, kind, dl_fid, fsky_t in (
         ("fullsky", "fullsky", dl_full, 1.0),
-        ("q5", 5.0, dl_q5, FSKY_Q5_THEORY),
+        ("q5", 5.0, dl_q5, _fsky_q5_theory()),
     ):
         sig_t = trispectrum_sigma(kind, theory_dl(kind), fsky_t)
         rel_t = sig_t * 1.0e12 / dl_fid

@@ -3,8 +3,8 @@
 Hole radius is max(4 theta_500, 2 FWHM) with FWHM=10 arcmin. Apodization
 matches tsz_cnc_paper_plots: nmt.mask_apodization(..., 0.25, apotype="C2").
 
-Default (no --prescription) keeps the original unlabeled L1_m9 mask paths.
---prescription NAME reads that run's fullsky_splitA_immf_q5.npz catalogue.
+Default: L1_m9 fiducial (2509 detections, szifi_homog/L1_m9/catalogues/...).
+--l2p8-test: legacy L2p8_m9 smoke-test catalogue (2364) at separate mask paths.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ NSIDE = 2048
 Q_CUT = 5.0
 FWHM_ARCMIN = 10.0
 APOSIZE_DEG = 0.25
-LEGACY_CAT = Path(
+L2P8_TEST_CAT = Path(
     "/rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/catalogues"
     "/homog_immf_fullsky_splitA_immf_q5.npz"
 )
@@ -50,14 +50,21 @@ def main() -> None:
     p.add_argument(
         "--prescription",
         choices=ALL_RUNS,
-        default=None,
-        help="Use szifi_homog/<name>/catalogues/fullsky_splitA_immf_q5.npz",
+        default="L1_m9",
+        help="szifi_homog/<name>/catalogues/fullsky_splitA_immf_q5.npz (default: L1_m9 fiducial)",
+    )
+    p.add_argument(
+        "--l2p8-test",
+        action="store_true",
+        help="L2p8_m9 legacy smoke-test catalogue (2364 detections); separate mask paths",
     )
     args = p.parse_args()
-    if args.prescription is None:
-        cat = LEGACY_CAT
-        out_bin = ILC_DIR / "szifi_immf_q5_cluster_mask_nside2048.fits"
-        out_apo = ILC_DIR / "szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits"
+    if args.l2p8_test:
+        if args.prescription != "L1_m9":
+            p.error("--l2p8-test cannot be combined with a non-default --prescription")
+        cat = L2P8_TEST_CAT
+        out_bin = ILC_DIR / "szifi_immf_q5_cluster_mask_l2p8test_nside2048.fits"
+        out_apo = ILC_DIR / "szifi_immf_q5_cluster_mask_l2p8test_c2_025deg_nside2048.fits"
     else:
         cat = catalogue_path(args.prescription)
         out_bin = cluster_mask_binary(args.prescription)
