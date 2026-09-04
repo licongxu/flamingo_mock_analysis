@@ -1,0 +1,31 @@
+# HILC y on LS8 homog skies (CIB + $\delta\beta$ + CMB). Noise realisation r1.
+work_in_healpix: 'yes'
+output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_LS8_deproj_CIB_CIB_dbeta_CMB/
+output_prefix: flamingo_
+output_suffix: _hilc_y_homog_fullsky_deproj_CIB_CIB_dbeta_CMB_LS8
+save_weights: 'yes'
+save_as: fits
+param_dict_file: /scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml
+ELLMAX: 4096
+taper_width: 200
+N_side: 2048
+N_freqs: 6
+bandpass_type: DeltaBandpasses
+freqs_delta_ghz: [100.0, 143.0, 353.0, 217.0, 545.0, 857.0]
+freq_map_files: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_LS8/sky_CMB_tSZ_CIB_homog_100GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_LS8/sky_CMB_tSZ_CIB_homog_143GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_LS8/sky_CMB_tSZ_CIB_homog_353GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_LS8/sky_CMB_tSZ_CIB_homog_217GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_LS8/sky_CMB_tSZ_CIB_homog_545GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_LS8/sky_CMB_tSZ_CIB_homog_857GHz_nside2048_K.fits]
+beam_type: Gaussians
+beam_FWHM_arcmin: [9.66, 7.22, 4.92, 4.9, 4.67, 4.22]
+perform_ILC_at_beam: 10.0
+ILC_preserved_comp: tSZ
+N_deproj: 3
+ILC_deproj_comps: [CIB, CIB_dbeta, CMB]
+N_maps_xcorr: 0
+print_timing: 'true'
+ilc_backend: jax
+wavelet_type: TopHatHarmonic
+BinSize: 50

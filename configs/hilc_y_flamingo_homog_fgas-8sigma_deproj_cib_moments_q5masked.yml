@@ -1,0 +1,35 @@
+# HILC y on fgas-8sigma homog skies (CIB + $\delta\beta$ + $\delta T$) with q>5 iMMF holes. Noise realisation r1.
+work_in_healpix: 'yes'
+output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_fgas-8sigma_q5masked_deproj_CIB_CIB_dbeta_CIB_dT/
+output_prefix: flamingo_
+output_suffix: _hilc_y_homog_q5masked_deproj_CIB_CIB_dbeta_CIB_dT_fgas-8sigma
+save_weights: 'yes'
+save_as: fits
+param_dict_file: /scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml
+ELLMAX: 4096
+taper_width: 200
+N_side: 2048
+N_freqs: 6
+bandpass_type: DeltaBandpasses
+freqs_delta_ghz: [100.0, 143.0, 353.0, 217.0, 545.0, 857.0]
+freq_map_files: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_fgas-8sigma/sky_CMB_tSZ_CIB_homog_100GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_fgas-8sigma/sky_CMB_tSZ_CIB_homog_143GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_fgas-8sigma/sky_CMB_tSZ_CIB_homog_353GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_fgas-8sigma/sky_CMB_tSZ_CIB_homog_217GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_fgas-8sigma/sky_CMB_tSZ_CIB_homog_545GHz_nside2048_K.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_fgas-8sigma/sky_CMB_tSZ_CIB_homog_857GHz_nside2048_K.fits]
+beam_type: Gaussians
+beam_FWHM_arcmin: [9.66, 7.22, 4.92, 4.9, 4.67, 4.22]
+perform_ILC_at_beam: 10.0
+ILC_preserved_comp: tSZ
+N_deproj: 3
+ILC_deproj_comps: [CIB, CIB_dbeta, CIB_dT]
+N_maps_xcorr: 0
+mask_before_covariance_computation: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/szifi_immf_q5_cluster_mask_fgas-8sigma_nside2048.fits,
+  0]
+mask_before_wavelet_computation: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/szifi_immf_q5_cluster_mask_fgas-8sigma_nside2048.fits,
+  0]
+print_timing: 'true'
+ilc_backend: jax
+wavelet_type: TopHatHarmonic
+BinSize: 50
