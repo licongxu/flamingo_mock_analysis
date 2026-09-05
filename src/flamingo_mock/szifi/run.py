@@ -125,7 +125,7 @@ def default_params(
     # SZiFi params.py misspells this as snr_weigthing; mmf.py reads snr_weighting.
     params_szifi["snr_weighting"] = False
     params_szifi["theta_500_vec_arcmin"] = np.exp(
-        np.linspace(np.log(1.0), np.log(10.0), 8)
+        np.linspace(np.log(0.5), np.log(32.0), 25)
     )
 
     params_data["data_set"] = "flamingo_mock"

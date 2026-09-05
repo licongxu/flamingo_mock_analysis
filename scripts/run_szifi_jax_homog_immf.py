@@ -40,6 +40,8 @@ from flamingo_mock.szifi.run import (  # noqa: E402
     default_params,
     merge_catalogue_npzs,
     save_catalogue_npz,
+    save_per_tile_sigma,
+    sigma_per_tile_dir,
 )
 from flamingo_mock.szifi.tiles import select_all_tile_ids  # noqa: E402
 
@@ -91,6 +93,13 @@ def run_mmf_jax(paths, field_ids, split="A", q_th_final=5.0, merge_radius_arcmin
         params_szifi=params_szifi, params_model=params_model, data_file=data, rank=0
     )
     cf.find_clusters()
+    method = "scimmf" if mmf_type == "spectrally_constrained" else "immf"
+    n_sig = save_per_tile_sigma(
+        cf.results_dict,
+        params_szifi["theta_500_vec_arcmin"],
+        sigma_per_tile_dir(paths, method=method, split=split),
+    )
+    print(f"  saved per-tile sigma_y0 for {n_sig} tiles", flush=True)
     dp = szifi_jax.detection_processor(cf.results_dict, params_szifi)
     cat_key = "catalogue_find_1" if params_szifi.get("iterative", True) else "catalogue_find_0"
     if cat_key not in dp.results.catalogues:
@@ -308,6 +317,7 @@ def run_one(
         )
 
     out = out_dir / f"{tag}_splitA_immf_q{q_th:g}.npz"
+    theta_npy = sigma_per_tile_dir(paths, method=method, split="A") / "theta_500_arcmin.npy"
     merge_catalogue_npzs(
         partials,
         out,
@@ -322,6 +332,9 @@ def run_one(
             "batch_size": batch_size,
             "q_th_final": q_th,
             "tag": tag,
+            "theta_500_arcmin": (
+                np.load(theta_npy).tolist() if theta_npy.is_file() else None
+            ),
         },
     )
     elapsed = time.time() - t_all
