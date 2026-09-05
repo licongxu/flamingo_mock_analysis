@@ -60,8 +60,10 @@ T_ν = B_ν ⊛ ( CMB + ΔT_ν^tSZ + ΔT_ν^CIB ) + noise_ν ,      ν ∈ {100 
 - Output: `total_maps/<prescription>/sky_CMB_tSZ_CIB_homog_{ν}GHz_nside2048_uK.fits`
   (`build_l1_prescription_totals.py:115`, path pattern in `szifi/paths.py:94-103`).
 - Prescriptions kept side by side: **`L1_m9`** (fiducial hydro, D3A), `fgas-8sigma`,
-  `Mstar-1sigma`, `LS8` (`build_l1_prescription_totals.py:24`). `total_maps/test/` is the old
-  L2p8 demo, unused (r2 HILC inputs are rebuilt from `total_maps/L1_m9`, not from `test/`).
+  `Mstar-1sigma`, `LS8` (`build_l1_prescription_totals.py:24`). **`L1_m9_cibshuffle`** is a
+  CIB-only nested nside=8 tile permutation of the fiducial CIB (seed 20260831); CMB, tSZ and
+  white noise stay pixel-aligned (`scripts/build_l1_m9_cibshuffle_totals.py`). `total_maps/test/`
+  is the old L2p8 demo, unused (r2 HILC inputs are rebuilt from `total_maps/L1_m9`, not from `test/`).
 - Default homog roots: total maps `total_maps/L1_m9`, outputs `szifi_homog`
   (`szifi/paths.py:32-37`).
 
@@ -103,10 +105,12 @@ r1×r2 cross-check (`scripts/build_homog_r2_test_maps.py`, `scripts/plot_hilc_ho
 
 ## 3. MMF cluster detection (SZiFi iMMF) **[fiducial]**
 
-Entry point `flamingo-szifi run --kind homog --full-sky --method immf`
-(`src/flamingo_mock/szifi/cli.py`); all algorithm parameters in
-`szifi/run.py::default_params` (`run.py:94-143`), which deep-copies
-`szifi.params_szifi_default` / `params_model_default` and overrides only what is listed below.
+Science driver: `scripts/run_szifi_jax_homog_immf.py` (`szifi_jax` on GPU 1, 768 tiles,
+batch 16). Algorithm parameters still come from `szifi/run.py::default_params`
+(`run.py:94-144`), which deep-copies `szifi.params_szifi_default` / `params_model_default`
+and overrides only what is listed below. The CPU CLI `flamingo-szifi run --kind homog
+--full-sky --method immf` (`cli.py`) shares those params; it is the slower resume-friendly
+path, not the fiducial catalogue.
 
 ### 3.1 Flat-sky tiling
 
@@ -153,7 +157,7 @@ axis* so `[tmap] = np.load(...)` matches SZiFi's `data_planck.py` (`tiles.py:173
 | Multipole range | `lrange = [100, 2500]` | SZiFi default (`params.py`) |
 | Beam model | `beam = "gaussian"`, `integrate_bandpass = False` | `run.py:115-116` |
 | Instrument object | `expt.experiment("Planck_simple")`, then **`exp.FWHM` overwritten with the Table I vector** so SZiFi uses exactly the beams that were applied to the maps | `survey.py:118-120` |
-| Search scales | **θ₅₀₀ ∈ log-spaced 1′–10′, 8 values** | `run.py:127-129` (overrides SZiFi default 0.5′–15′, 2 values) |
+| Search scales | **θ₅₀₀ ∈ 25 log-spaced points, 0.5′–32′** | `run.py:127-129` (same grid as `compute_flamingo_immf_skyavg_noise.py:47-49`) |
 | Pressure profile | GNFW `profile_type = "arnaud"` (Arnaud+2010), `concentration = 1.177` | `params_model_default`, unmodified (`run.py:106`) |
 | Amplitude convention | `norm_type = "centre"` → template normalised to **central Compton-*y*** *y*₀ | `params.py`; `nfw.get_y_norm(...)` at `compute_flamingo_immf_skyavg_noise.py:96,260` |
 | *m*(θ₅₀₀) mapping | templates built at *z* = 0.2 via `model.get_m_500(θ₅₀₀, z=0.2)` | `compute_flamingo_immf_skyavg_noise.py:87,247` |
@@ -174,43 +178,50 @@ This is exactly the estimator already written in the paper as Eqs.
 
 ### 3.4 Catalogue formation **[fiducial]**
 
-1. Run in **batches of 2 tiles** (memory + resume granularity), 8 workers × 1 thread, JAX on CPU
-   (`run.py:404 run_mmf_batched`; recorded in every sidecar:
-   `batch_size: 2, n_workers: 8, threads_per_worker: 1, array_backend: "jax"`).
+1. GPU `szifi_jax` in **batches of 16 tiles** (`run_szifi_jax_homog_immf.py`, `gpu_tile_batch=16`;
+   sidecar `batch_size: 16, n_tiles: 768, backend: "szifi_jax"`). ~8–9 min wall per full-sky run
+   on CUDA:1. Partial batches under `catalogues/partial_{tag}_splitA_{immf|scimmf}/`.
 2. Keep `q_opt ≥ q_th_final = 5.0` (`run.py:257`).
 3. **FoF merge** of duplicates, `merge_radius_arcmin = 10.0` (`run.py:260-264`), re-applied to the
    concatenated all-sky catalogue (`run.py:389-394`).
-4. Write npz + JSON sidecar:
-   `szifi_homog/<prescription>/catalogues/fullsky_splitA_immf_q5.npz`.
-   Verified columns: `q_opt, y0, theta_500, theta_x, theta_y, lon, lat, pixel_ids`.
+4. Write npz + JSON sidecar (filename keeps `_immf_q5` even for sciMMF, matching the archive):
+   `szifi_homog/<prescription>/catalogues/szifi_jax{,_scimmf}_splitA_immf_q5.npz`.
+   Columns: `q_opt, y0, theta_500, theta_x, theta_y, lon, lat, pixel_ids`.
+5. Per-tile σ_{*y*₀}(θ) on the same 25-point grid is written during the run
+   (`run.py:165 save_per_tile_sigma`, hooked from `run_szifi_jax_homog_immf.py:97-102`) →
+   `catalogues/sigma_per_tile_{immf|scimmf}_splitA/{theta_500_arcmin.npy, field_{id}.npy,
+   field_{id}_noit.npy}` (768 tiles).
 
-**Detection counts, *q* ≥ 5, full sky (768 tiles):**
+**Detection counts, *q* ≥ 5, full sky (768 tiles), post *z*_eff=1.90 regen (2026-09-05):**
 
-| Prescription | *N*(*q* ≥ 5) | Sidecar |
-|---|---|---|
-| **L1_m9 (fiducial)** | **2509** | `szifi_homog/L1_m9/catalogues/fullsky_splitA_immf_q5.json` |
-| M\* − 1σ | 2634 | `szifi_homog/Mstar-1sigma/catalogues/…json` |
-| *f*_gas − 8σ | 2125 | `szifi_homog/fgas-8sigma/catalogues/…json` |
-| LS8 | 1561 | `szifi_homog/LS8/catalogues/…json` |
+| Sky | Method | *N*(*q* ≥ 5) | Sidecar |
+|---|---|---|---|
+| **L1_m9 correlated CIB** | iMMF | **2602** | `szifi_homog/L1_m9/catalogues/szifi_jax_splitA_immf_q5.json` |
+| L1_m9 correlated CIB | sciMMF | 2867 | `…/szifi_jax_scimmf_splitA_immf_q5.json` |
+| L1_m9 shuffled CIB | iMMF | 3119 | `szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_splitA_immf_q5.json` |
+| L1_m9 shuffled CIB | sciMMF | 2979 | `…/szifi_jax_scimmf_splitA_immf_q5.json` |
 
-L1_m9 distributions (read from the npz): *q* = 5.00–48.3, median 6.58;
-*y*₀ = 3.07e-5 – 3.35e-3, median 8.19e-5; θ₅₀₀ median 7.2′ with clear pile-up at the grid edges
-(1′ and 10′) — worth one sentence about the discrete scale grid.
+L1_m9 iMMF distributions (read from the npz): *q* = 5.00–99.6, median 6.62;
+*y*₀ = 9.69e-6 – 1.97e-2, median 7.54e-5; θ₅₀₀ median 6.73′ with pile-up at the grid edges
+(0.5′: 109; 32′: 142) — worth one sentence about the discrete scale grid.
+Pre-regen 8-point (1′–10′) L1_m9 iMMF had *N* = 2509; hydro variants
+(`fgas-8sigma`, `Mstar-1sigma`, `LS8`) are not yet re-run on the new maps
+(`szifi_homog/archive/2026-09-05_pre_regen/`).
 
 **CNC *q* binning:** `np.geomspace(5, 40, 6)` → 5 log-spaced bins, deliberately identical to the
 5 *q* bins of the synthetic-data section (`scripts/plot_szifi_homog_binned_Nq.py:22,57`);
-figure `figures/szifi_homog_cnc_binned_Nq_qgt5_immf.{png,pdf}`.
+figure `figures/szifi/szifi_homog_cnc_binned_Nq_qgt5_immf_scimmf_l1m9_cibshuffle.{png,pdf}`.
+Bin totals omit *q* > 40 (L1_m9 iMMF: 2591 of 2602).
 
-### 3.5 sciMMF (CIB-deprojected) — *implemented, not run on the fiducial set*
+### 3.5 sciMMF (CIB-deprojected) **[run on homog L1_m9]**
 
 - `mmf_type = "spectrally_constrained"`, `deproject_cib = ["cib"]`, internal `cmmf_type="one_dep"`
-  (`run.py:119,315-318,427-430`).
+  (`run.py:119,315-318,427-430`; `--mmf-type spectrally_constrained` on the JAX driver).
 - The deprojected CIB SED uses the **SZiFi/*Planck* defaults, not the FLAMINGO CIB model**:
   α_cib = 0.36, *T*₀_cib = 20.7 K, β_cib = 1.6, *z*_eff_cib = 0.2 (`run.py:139-142`) — compare the
   FLAMINGO values β_d = 1.65, *T*₀ = 35.14 K, *z*_eff = 1.90 (`config.py:45-50`).
-- Only ever run on the **NPIPE footprint** tiles (`szifi/catalogues/footprint_splitA_scimmf_q5.npz`,
-  10 Aug). If sciMMF is claimed as a FLAMINGO result it must first be re-run on the `homog`
-  full-sky tiles *and* the deprojection SED reconciled with the FLAMINGO CIB model.
+- Full-sky homog catalogues: §3.4 table. NPIPE-footprint sciMMF
+  (`szifi/catalogues/footprint_splitA_scimmf_q5.npz`) is a separate validation product, archived.
 
 ---
 
@@ -239,12 +250,12 @@ figure `figures/szifi_homog_cnc_binned_Nq_qgt5_immf.{png,pdf}`.
   radial grid *x* ∈ [0, 5] with 201 radii × 180 azimuths, cubic polynomial in log θ₅₀₀
   (`compute_mmf_W_yt_skyavg.py:29-37`) →
   `szifi/catalogues/mmf_aperture/W_theta_yt_skyavg_25pt.npz`.
-- σ_{*y*₀} is **also saved per tile during every MMF run**, on that run's search-scale grid
-  (`run.py:165 save_per_tile_sigma` → `catalogues/sigma_per_tile_immf_splitA/field_{id}.npy`,
-  plus `field_{id}_noit.npy` for the non-iterated covariance). The separate 25-point analysis
-  curves are backfilled for all four prescriptions into
-  `sigma_per_tile_flamingo_immf_it_splitA/` by
-  `scripts/backfill_szifi_homog_tile_sigma.py`; the two grids are never mixed.
+- σ_{*y*₀} is **saved per tile during every MMF run** on the same 25-point search-scale grid
+  (`run.py:165 save_per_tile_sigma` → `catalogues/sigma_per_tile_{immf|scimmf}_splitA/field_{id}.npy`,
+  plus `field_{id}_noit.npy` for the non-iterated covariance). The optional
+  `compute_flamingo_immf_skyavg_noise.py --kind homog --iterative --full-sky` path still writes
+  `sigma_per_tile_flamingo_immf_it_splitA/` plus the sky-averaged vs-`immf6` npz; it is not
+  needed to obtain per-tile σ after a `szifi_jax` run.
 
 ---
 
@@ -305,10 +316,12 @@ This is the *q* behind the FLAMINGO numbers currently in the paper
 `scripts/build_szifi_q5_cluster_mask.py` — the pipeline version of the masking geometry already
 described in `subsec:syntheticdata`:
 
-- Source catalogue (fiducial L1_m9): `szifi_homog/L1_m9/catalogues/fullsky_splitA_immf_q5.npz`,
-  **2509** detections with *q* > 5 (`build_szifi_q5_cluster_mask.py`, default `--prescription L1_m9`).
-  Other prescriptions use `szifi_homog/<name>/catalogues/...` (LS8 1561, M\*−1σ 2634,
-  *f*_gas−8σ 2125). Legacy `homog_immf_fullsky` (2364) is L2p8_m9 test-only (`--l2p8-test`).
+- Source catalogue expected by the mask script: `szifi_homog/<name>/catalogues/fullsky_splitA_immf_q5.npz`
+  (`build_szifi_q5_cluster_mask.py`, default `--prescription L1_m9`). The current fiducial
+  detections are `szifi_jax_splitA_immf_q5.npz` (**2602**); copy or symlink that file to the
+  `fullsky_splitA_immf_q5.npz` name before rebuilding HILC cluster masks. Hydro-variant
+  catalogues are not yet regenerated.
+  Legacy `homog_immf_fullsky` (2364) is L2p8_m9 test-only (`--l2p8-test`).
 - Hole radius **max(4 θ₅₀₀, 2 × FWHM)** with FWHM = 10 arcmin (`:16,42-45`) — identical in form to
   θ_max = max(4θ₅₀₀, 2θ_FWHM) in the synthetic section.
 - Apodisation: `nmt.mask_apodization(mask, 0.25, apotype="C2")` → 0.25° cosine taper (`:17,56`),
@@ -446,31 +459,37 @@ cd /scratch/scratch-lxu/flamingo_mock_analysis
 python scripts/build_l1_m9_fiducial_components.py
 python scripts/build_l1_prescription_totals.py
 
-# 2) iMMF catalogue, full sky, one output root per prescription
-flamingo-szifi run --kind homog --full-sky --method immf \
+# 2) tiles + GPU iMMF / sciMMF (see docs/regeneration_pipeline.md Step 3)
+flamingo-szifi prepare --kind homog --full-sky --split A --n-workers 6 \
     --out-root       /rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/L1_m9 \
-    --total-maps-dir /rds/rds-lxu/flamingo/integrated_maps_synthetic/total_maps/L1_m9 \
-    --n-workers 8 --threads-per-worker 1 --backend jax
+    --total-maps-dir /rds/rds-lxu/flamingo/integrated_maps_synthetic/total_maps/L1_m9
+python scripts/run_szifi_jax_homog_immf.py --prescription L1_m9 --mmf-type standard --no-ref
+python scripts/run_szifi_jax_homog_immf.py --prescription L1_m9 --mmf-type spectrally_constrained --no-ref
 
-# 3) MMF noise curves: per tile + sky-averaged, compared to Planck immf6
-python scripts/backfill_szifi_homog_tile_sigma.py 16
-
-# 4) N(q) CNC figure and the q>5 cluster mask
-python scripts/plot_szifi_homog_binned_Nq.py
+# 3) N(q) CNC figure (iMMF/sciMMF × correlated/shuffled) and the q>5 cluster mask
+python scripts/plot_szifi_homog_binned_Nq.py \
+    --cats /rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/L1_m9/catalogues/szifi_jax_splitA_immf_q5.npz \
+           /rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_splitA_immf_q5.npz \
+           /rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/L1_m9/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz \
+           /rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz \
+    --labels "iMMF correlated" "iMMF shuffled CIB" "sciMMF correlated" "sciMMF shuffled CIB" \
+    --stem szifi_homog_cnc_binned_Nq_qgt5_immf_scimmf_l1m9_cibshuffle
 python scripts/build_szifi_q5_cluster_mask.py
 ```
 
-Logs of the actual runs: `logs/szifi_homog_{L1_m9,LS8,Mstar-1sigma,fgas-8sigma}_fullsky.log`,
-`logs/sigma_per_tile_*.log`, `logs/hilc_homog*.log`.
+Logs of the 2026-09-05 regen: `logs/prepare_{L1_m9,L1_m9_cibshuffle}_regen.log`,
+`logs/szifi_jax_{l1_m9,scimmf_l1_m9,l1_m9_cibshuffle,scimmf_l1_m9_cibshuffle}_regen.log`.
 
 ---
 
 ## 10. Things to settle before writing this section
 
 1. **Fiducial vs L2p8 test catalogues.**
-   L1_m9 fiducial uses `szifi_homog/L1_m9/catalogues/fullsky_splitA_immf_q5.npz` (**2509**).
+   L1_m9 fiducial detections are `szifi_homog/L1_m9/catalogues/szifi_jax_splitA_immf_q5.npz` (**2602**).
    Root `homog_immf_fullsky` (**2364**) is the old L2p8_m9 smoke-test catalogue only
    (`build_szifi_q5_cluster_mask.py --l2p8-test`); it must not drive fiducial masks or HILC.
+   The mask script still defaults to `fullsky_splitA_immf_q5.npz` — point it at the JAX
+   catalogue before regenerating HILC q5 masks.
 2. **Which *q* goes into the CNC?** §5's `q_from_aperture` (current text and figures) vs §3's blind
    `q_opt`. If both appear, the paper must state explicitly that they are different estimators —
    the counts and the physics claims differ substantially.
@@ -478,12 +497,12 @@ Logs of the actual runs: `logs/szifi_homog_{L1_m9,LS8,Mstar-1sigma,fgas-8sigma}_
    validated purity/completeness numbers were measured on *NPIPE* (anisotropic, position-tied)
    noise restricted to the PR4 footprint. Either re-run the benchmark on the fiducial set or scope
    the purity claim accordingly.
-4. **sciMMF on FLAMINGO has not been run** (§3.5), and its deprojection SED is the *Planck* default
-   rather than the FLAMINGO CIB model.
+4. **sciMMF deprojection SED is the *Planck* default**, not the FLAMINGO CIB model (§3.5).
+   Homog full-sky sciMMF catalogues exist; the SED mismatch is the remaining caveat.
 5. **"Multifrequency" here means CMB + tSZ + CIB + white noise**: no kSZ, no Galactic foregrounds,
    no radio point sources. Say so plainly rather than implying a full *Planck*-like foreground model.
-6. **θ₅₀₀ is a discrete 8-point grid (1′–10′)** and `theta_500` piles up at both edges; the mask
-   radius max(4θ₅₀₀, 10′) is therefore partly quantised.
+6. **θ₅₀₀ is a discrete 25-point grid (0.5′–32′)** and `theta_500` still piles up at both edges;
+   the mask radius max(4θ₅₀₀, 10′) is therefore partly quantised.
 7. **Mask FWHM = 10′** in `build_szifi_q5_cluster_mask.py:16` is the *synthetic-section* beam, not
    any *Planck* channel FWHM (2.5× the smallest). Fine, but describe it as an analysis choice.
 8. **Pixel window is not deconvolved anywhere** (neither map-making nor MMF). Self-consistent, but
