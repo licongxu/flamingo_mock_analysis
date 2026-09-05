@@ -210,7 +210,10 @@ def test_completeness_bar_counts_on_real_json_if_present():
 
 
 def test_paper_tex_flushes_floats_before_conclusions():
-    tex = (PAPER / "main.tex").read_text()
+    tex_path = PAPER / "main.tex"
+    if not tex_path.is_file():
+        pytest.skip("paper/ is gitignored")
+    tex = tex_path.read_text()
     # clearpage must appear before Discussion section
     i_disc = tex.index(r"\section{Discussion and conclusions}")
     i_clear = tex.rfind(r"\clearpage", 0, i_disc)
