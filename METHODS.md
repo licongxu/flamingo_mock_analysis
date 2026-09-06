@@ -200,20 +200,23 @@ This is exactly the estimator already written in the paper as Eqs.
 | L1_m9 correlated CIB | sciMMF | 2867 | `…/szifi_jax_scimmf_splitA_immf_q5.json` |
 | L1_m9 shuffled CIB | iMMF | 3119 | `szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_splitA_immf_q5.json` |
 | L1_m9 shuffled CIB | sciMMF | 2979 | `…/szifi_jax_scimmf_splitA_immf_q5.json` |
+| fgas-8sigma | sciMMF | 2465 | `szifi_homog/fgas-8sigma/catalogues/szifi_jax_scimmf_splitA_immf_q5.json` |
+| Mstar-1sigma | sciMMF | 3001 | `szifi_homog/Mstar-1sigma/catalogues/szifi_jax_scimmf_splitA_immf_q5.json` |
+| LS8 | sciMMF | 1811 | `szifi_homog/LS8/catalogues/szifi_jax_scimmf_splitA_immf_q5.json` |
 
 L1_m9 iMMF distributions (read from the npz): *q* = 5.00–99.6, median 6.62;
 *y*₀ = 9.69e-6 – 1.97e-2, median 7.54e-5; θ₅₀₀ median 6.73′ with pile-up at the grid edges
 (0.5′: 109; 32′: 142) — worth one sentence about the discrete scale grid.
-Pre-regen 8-point (1′–10′) L1_m9 iMMF had *N* = 2509; hydro variants
-(`fgas-8sigma`, `Mstar-1sigma`, `LS8`) are not yet re-run on the new maps
-(`szifi_homog/archive/2026-09-05_pre_regen/`).
+Pre-regen 8-point (1′–10′) L1_m9 iMMF had *N* = 2509. Hydro-variant **iMMF** catalogues
+are still the archived 8-point runs (`szifi_homog/archive/2026-09-05_pre_regen/`).
 
 **CNC *q* binning:** `np.geomspace(5, 40, 6)` → 5 log-spaced bins, deliberately identical to the
 5 *q* bins of the synthetic-data section (`scripts/plot_szifi_homog_binned_Nq.py:22,57`);
-figure `figures/szifi/szifi_homog_cnc_binned_Nq_qgt5_immf_scimmf_l1m9_cibshuffle.{png,pdf}`.
-Bin totals omit *q* > 40 (L1_m9 iMMF: 2591 of 2602).
+CIB-shuffle overlay `figures/szifi/szifi_homog_cnc_binned_Nq_qgt5_immf_scimmf_l1m9_cibshuffle.{png,pdf}`;
+four-prescription sciMMF `figures/szifi/szifi_homog_cnc_binned_Nq_qgt5_scimmf_prescriptions.{png,pdf}`.
+Bin totals omit *q* > 40 (L1_m9 iMMF: 2591 of 2602; L1_m9 sciMMF: 2856 of 2867).
 
-### 3.5 sciMMF (CIB-deprojected) **[run on homog L1_m9]**
+### 3.5 sciMMF (CIB-deprojected) **[run on homog L1_m9 + hydro variants]**
 
 - `mmf_type = "spectrally_constrained"`, `deproject_cib = ["cib"]`, internal `cmmf_type="one_dep"`
   (`run.py:119,315-318,427-430`; `--mmf-type spectrally_constrained` on the JAX driver).
@@ -474,11 +477,16 @@ python scripts/plot_szifi_homog_binned_Nq.py \
            /rds/rds-lxu/flamingo/integrated_maps_synthetic/szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz \
     --labels "iMMF correlated" "iMMF shuffled CIB" "sciMMF correlated" "sciMMF shuffled CIB" \
     --stem szifi_homog_cnc_binned_Nq_qgt5_immf_scimmf_l1m9_cibshuffle
+python scripts/plot_szifi_homog_binned_Nq.py \
+    --cat-name szifi_jax_scimmf_splitA_immf_q5.npz \
+    --stem szifi_homog_cnc_binned_Nq_qgt5_scimmf_prescriptions
 python scripts/build_szifi_q5_cluster_mask.py
 ```
 
 Logs of the 2026-09-05 regen: `logs/prepare_{L1_m9,L1_m9_cibshuffle}_regen.log`,
 `logs/szifi_jax_{l1_m9,scimmf_l1_m9,l1_m9_cibshuffle,scimmf_l1_m9_cibshuffle}_regen.log`.
+Hydro sciMMF (2026-09-06): `logs/prepare_{fgas-8sigma,Mstar-1sigma,LS8}_scimmf.log`,
+`logs/szifi_jax_scimmf_{fgas-8sigma,Mstar-1sigma,LS8}_regen.log`.
 
 ---
 

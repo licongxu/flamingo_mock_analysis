@@ -48,14 +48,16 @@ Writes `ilc/inputs_nside2048_homog*` (r1 observation + r2 independent noise real
 
 ## Step 2 — HILC y-maps (all prescriptions × deproj × mask × r1/r2)
 
-Regenerates YAMLs, runs missing pyILC jobs, plots prescription suite:
+CPU ducc SHT, numpy weights (2026-09-06 sciMMF-mask regen). YAMLs include `sht_backend: ducc0`. Do **not** use `run_hilc_all_prescriptions_deproj.sh` (that forces jax + GPU 1).
 
 ```bash
-bash scripts/run_hilc_all_prescriptions_deproj.sh
-# log: logs/hilc_all_prescriptions_deproj.log
+export CUDA_VISIBLE_DEVICES="" PYILC_BACKEND=numpy
+python scripts/write_hilc_prescription_configs.py
+python scripts/run_hilc_prescriptions.py
+# log: logs/hilc_scimmf_ducc_cpu.log
 ```
 
-Long-running (~82 configs). Skips y-maps that already exist and are >1 MB.
+80 configs (4 prescriptions × 5 deproj × full-sky/q5 × r1/r2). Skips y-maps that already exist and are >1 MB. Leaves y-maps and `flamingo_weightvector_scale*.txt` on disk (HILC harmonic weights; pyILC still names the y-maps `needletILCmap_*`).
 
 ## Step 3 — SZiFi homog MMF (szifi_jax, GPU 1)
 
@@ -96,9 +98,23 @@ Catalogue files keep the archived name `{tag}_splitA_immf_q5.npz`.
 L1_m9_cibshuffle iMMF 3119, sciMMF 2979. Per-tile σ: 768 tiles × 25 θ points under
 `catalogues/sigma_per_tile_{immf,scimmf}_splitA/`.
 
-Feedback prescriptions (`fgas-8sigma`, `Mstar-1sigma`, `LS8`) use the same
-prepare + `--prescription` driver when needed for HILC masks. Not re-run in this
-round.
+**sciMMF on four prescriptions (2026-09-06).** L1_m9 reused. New tiles + GPU sciMMF
+for `fgas-8sigma`, `Mstar-1sigma`, `LS8` (no CIB shuffle; archive has no hydro sciMMF
+refs). Catalogues: `szifi_homog/<rx>/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz`.
+
+```bash
+for RX in fgas-8sigma Mstar-1sigma LS8; do
+  flamingo-szifi prepare --kind homog --full-sky --split A --n-workers 6 \
+    --out-root "$ROOT/szifi_homog/$RX" \
+    --total-maps-dir "$ROOT/total_maps/$RX"
+  python scripts/run_szifi_jax_homog_immf.py --prescription "$RX" \
+    --mmf-type spectrally_constrained --no-ref
+done
+```
+
+Counts *q*≥5: L1_m9 2867, fgas-8sigma 2465, Mstar-1sigma 3001, LS8 1811.
+Logs `logs/prepare_{fgas-8sigma,Mstar-1sigma,LS8}_scimmf.log`,
+`logs/szifi_jax_scimmf_{fgas-8sigma,Mstar-1sigma,LS8}_regen.log`.
 
 CNC figure (q≥5):
 
@@ -110,24 +126,32 @@ python scripts/plot_szifi_homog_binned_Nq.py \
          $ROOT/szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz \
   --labels "iMMF correlated" "iMMF shuffled CIB" "sciMMF correlated" "sciMMF shuffled CIB" \
   --stem szifi_homog_cnc_binned_Nq_qgt5_immf_scimmf_l1m9_cibshuffle
+python scripts/plot_szifi_homog_binned_Nq.py \
+  --cat-name szifi_jax_scimmf_splitA_immf_q5.npz \
+  --stem szifi_homog_cnc_binned_Nq_qgt5_scimmf_prescriptions
 bash scripts/organize_figures.sh
 ```
 
-## Step 4 — q5 cluster masks for masked HILC
+## Step 4 — q5 cluster masks (sciMMF) and NaMaster r1×r2 PS
 
-After catalogues exist:
+Masks from the new sciMMF catalogues (`max(4 θ₅₀₀, 2×10′)`, C2 0.25°):
 
 ```bash
+ROOT=/rds/rds-lxu/flamingo/integrated_maps_synthetic
 for rx in L1_m9 fgas-8sigma Mstar-1sigma LS8; do
-  python scripts/build_szifi_q5_cluster_mask.py --prescription "$rx"
+  python scripts/build_szifi_q5_cluster_mask.py --prescription "$rx" \
+    --catalogue "$ROOT/szifi_homog/$rx/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz"
 done
 ```
 
-Re-run masked HILC configs if masks changed:
+Beam-deconvolved NaMaster **r1×r2 cross** (deconv per ℓ, then bin; Planck-18 + log):
 
 ```bash
-python scripts/run_hilc_prescriptions.py   # skips existing y-maps; delete stale masked dirs first if needed
+python scripts/compute_hilc_y_namaster_ps.py
+# → $ROOT/ilc/ps_namaster/<rx>_<deproj>_{total,masked}_{p18,log}.npz
 ```
+
+**Done 2026-09-06:** 80 HILC y-maps; 80 PS npz (4×5 deproj × total/masked × p18/log). Logs `logs/mask_scimmf_*.log`, `logs/hilc_scimmf_ducc_cpu.log`, `logs/hilc_namaster_ps.log`.
 
 ## Step 5 — publication figures
 

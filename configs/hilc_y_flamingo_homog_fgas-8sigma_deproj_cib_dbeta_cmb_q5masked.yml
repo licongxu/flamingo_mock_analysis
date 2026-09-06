@@ -1,4 +1,4 @@
-# HILC y on fgas-8sigma homog skies (CIB + $\delta\beta$ + CMB) with q>5 iMMF holes. Noise realisation r1.
+# HILC y on fgas-8sigma homog skies (CIB + $\delta\beta$ + CMB) with q>5 cluster holes. Noise realisation r1.
 work_in_healpix: 'yes'
 output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_fgas-8sigma_q5masked_deproj_CIB_CIB_dbeta_CMB/
 output_prefix: flamingo_
@@ -31,5 +31,6 @@ mask_before_wavelet_computation: [/rds/rds-lxu/flamingo/integrated_maps_syntheti
   0]
 print_timing: 'true'
 ilc_backend: jax
+sht_backend: ducc0
 wavelet_type: TopHatHarmonic
 BinSize: 50

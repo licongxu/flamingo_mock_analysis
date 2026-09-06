@@ -58,15 +58,23 @@ def main() -> None:
         action="store_true",
         help="L2p8_m9 legacy smoke-test catalogue (2364 detections); separate mask paths",
     )
+    p.add_argument(
+        "--catalogue",
+        type=Path,
+        default=None,
+        help="Catalogue npz (default: szifi_homog/<name>/catalogues/fullsky_splitA_immf_q5.npz)",
+    )
     args = p.parse_args()
     if args.l2p8_test:
         if args.prescription != "L1_m9":
             p.error("--l2p8-test cannot be combined with a non-default --prescription")
+        if args.catalogue is not None:
+            p.error("--l2p8-test cannot be combined with --catalogue")
         cat = L2P8_TEST_CAT
         out_bin = ILC_DIR / "szifi_immf_q5_cluster_mask_l2p8test_nside2048.fits"
         out_apo = ILC_DIR / "szifi_immf_q5_cluster_mask_l2p8test_c2_025deg_nside2048.fits"
     else:
-        cat = catalogue_path(args.prescription)
+        cat = args.catalogue or catalogue_path(args.prescription)
         out_bin = cluster_mask_binary(args.prescription)
         out_apo = cluster_mask_apo(args.prescription)
 
