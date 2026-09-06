@@ -1,0 +1,9 @@
+{
+  "A_SZ": -4.1075073,
+  "q_cat": 5.0,
+  "f_sky": 0.8482995721092866,
+  "f_sky_source": "/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits",
+  "qfrommap_f_sky_not_used": 0.8595492784996496,
+  "cov_trispectrum": "/scratch/scratch-lxu/flamingo_mock_analysis/data/cov_trispectrum_L1_m9_ilc_q5_Dl_yy_binned_18.npy",
+  "theory": "/scratch/scratch-lxu/flamingo_mock_analysis/data/theory_L1_m9_ilc_q5_Dl_yy_binned_18.txt"
+}

@@ -1,6 +1,6 @@
 # METHODS — MMF cluster detection and Compton-*y* reconstruction on FLAMINGO mock skies
 
-Working notes for the paper (`tsz_cnc_paper_plots/6a4738926d5991d919e1a0c8/main.tex`,
+Working notes for the paper (`tsz_cnc_paper_plots/masking_giant_paper/main.tex`,
 `\subsubsection{Cluster detection and Compton-y reconstruction}`).
 
 Everything below is read out of the code and products in this repo
