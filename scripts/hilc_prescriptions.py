@@ -207,7 +207,7 @@ def write_hilc_yaml(
     deproj_note = "" if deproj.n_deproj == 0 else f" ({deproj.label})"
     lines = [
         f"# HILC y on {name} homog skies{deproj_note}"
-        + (" with q>5 iMMF holes." if masked else ".")
+        + (" with q>5 cluster holes." if masked else ".")
         + (" Independent white-noise r2." if real == 2 else " Noise realisation r1."),
         "work_in_healpix: 'yes'",
         f"output_dir: {hilc_output_dir(name, masked=masked, real=real, deproj=deproj)}/",
@@ -244,6 +244,7 @@ def write_hilc_yaml(
     lines += [
         "print_timing: 'true'",
         "ilc_backend: jax",
+        "sht_backend: ducc0",
         "wavelet_type: TopHatHarmonic",
         "BinSize: 50",
         "",

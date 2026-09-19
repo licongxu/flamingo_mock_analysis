@@ -95,6 +95,7 @@ def test_written_yaml_uses_matching_mask_and_noise_split(tmp_path, monkeypatch):
         assert "N_deproj: 1" in t1
         assert "ILC_deproj_comps: [CIB]" in t1
         assert "TopHatHarmonic" in t1
+        assert "sht_backend: ducc0" in t1
         assert yaml_path("L1_m9", masked=False, real=1).name == "hilc_y_flamingo_homog.yml"
 
 
@@ -116,6 +117,7 @@ def test_ymap_path_includes_deproject_tag():
 def test_build_mask_defaults_to_l1_m9_fiducial():
     src = (_SCRIPTS / "build_szifi_q5_cluster_mask.py").read_text()
     assert 'default="L1_m9"' in src
+    assert "--catalogue" in src
     assert "L2P8_TEST_CAT" in src
     assert "LEGACY_CAT" not in src
 

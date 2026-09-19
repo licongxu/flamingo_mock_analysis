@@ -17,7 +17,7 @@ stage (beams, coaddition, and noise come later):
 * **tSZ** — lensed Compton-y map × non-relativistic f(nu) = x coth(x/2) - 4.
 * **kSZ** — lensed Doppler-b map, dT = -T_CMB * b (frequency independent).
 * **CIB** — released bandpass maps at 217/353/545/857 GHz (Jy/sr → uK_CMB);
-  100/143 GHz via greybody-SED scaling from the nearest band at z_eff = 1.5.
+  100/143 GHz via greybody-SED scaling from the nearest band at z_eff = 1.90.
 
 Instrumental noise and beam convolution are **not** applied yet.
 

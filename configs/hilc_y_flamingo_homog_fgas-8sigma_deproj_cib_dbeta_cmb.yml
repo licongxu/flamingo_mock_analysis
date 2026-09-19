@@ -27,5 +27,6 @@ ILC_deproj_comps: [CIB, CIB_dbeta, CMB]
 N_maps_xcorr: 0
 print_timing: 'true'
 ilc_backend: jax
+sht_backend: ducc0
 wavelet_type: TopHatHarmonic
 BinSize: 50
