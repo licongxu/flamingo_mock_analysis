@@ -137,12 +137,12 @@ def _write_residuals(
             w1 = diag.hilc_weights(
                 hilc_output_dir(name, masked=masked, real=1, deproj=deproj),
                 deproj.wtag,
-                LMAX,
+                diag.LMAX,
             )
             w2 = diag.hilc_weights(
                 hilc_output_dir(name, masked=masked, real=2, deproj=deproj),
                 deproj.wtag,
-                LMAX,
+                diag.LMAX,
             )
             y_cib1, y_cib2 = _y_alms(w1, w2, cib_alms, False)
             y_cmb1, y_cmb2 = _y_alms(w1, w2, (cmb_alm,), True)
