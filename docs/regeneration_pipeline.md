@@ -124,7 +124,7 @@ python scripts/plot_szifi_homog_binned_Nq.py \
          $ROOT/szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_splitA_immf_q5.npz \
          $ROOT/szifi_homog/L1_m9/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz \
          $ROOT/szifi_homog/L1_m9_cibshuffle/catalogues/szifi_jax_scimmf_splitA_immf_q5.npz \
-  --labels "iMMF correlated" "iMMF shuffled CIB" "sciMMF correlated" "sciMMF shuffled CIB" \
+  --labels "iMMF correlated" "iMMF randomized CIB" "sciMMF correlated" "sciMMF randomized CIB" \
   --stem szifi_homog_cnc_binned_Nq_qgt5_immf_scimmf_l1m9_cibshuffle
 python scripts/plot_szifi_homog_binned_Nq.py \
   --cat-name szifi_jax_scimmf_splitA_immf_q5.npz \
