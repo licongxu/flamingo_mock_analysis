@@ -40,6 +40,9 @@ def test_deproj_cib_lowers_cib_residual_below_ell500():
         none = PS / f"L1_m9_nodeproj_{kind}_residuals.npz"
         cib = PS / f"L1_m9_deproj_cib_{kind}_residuals.npz"
         assert none.is_file() and cib.is_file(), "run scripts/compute_hilc_residuals_truth.py"
+        if kind == "masked":
+            assert bool(np.load(none)["apodized_sht"])
+            assert bool(np.load(cib)["apodized_sht"])
         a = np.abs(np.asarray(np.load(none)["dl_cib"]))
         b = np.abs(np.asarray(np.load(cib)["dl_cib"]))
         assert np.all(b[lo] < a[lo]), kind
