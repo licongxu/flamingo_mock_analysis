@@ -3,11 +3,12 @@
 
 Truth: ud-grade Compton-y to Nside=2048, MASTER nlb=1, pixwin-only deconv.
 Written for L1_m9, fgas-8sigma, and Mstar-1sigma (own q>5 mask).
-Residuals: pyILC weights × (B_10 taper) on CIB/CMB alms → alm2map → same
-workspace, deconv B_10^2 only. lmax=1085 covers the 18 Planck bins.
-q>5 residuals multiply maps by the C2 0.25° apodized cluster mask before
-map2alm (same mask as the synthetic MASTER spectra), then apply HILC
-weights. L1_m9 also stores tSZ×CIB.
+fgas-8sigma and Mstar-1sigma store residuals for every deprojection.
+Residuals: channel-beam the signal, multiply the mask, map2alm, then
+pyILC weights × (B_10/B_ν taper). Noise is not in these files. Deconv is
+B_10^2 only, lmax=4096, same MASTER setup as the y-map p18 spectra.
+Full-sky mean is not removed; NaMaster subtracts the mask-weighted monopole.
+L1_m9 also stores tSZ×CIB.
 """
 from __future__ import annotations
 
@@ -37,7 +38,6 @@ _DSPEC.loader.exec_module(diag)
 
 from hilc_prescriptions import (  # noqa: E402
     ALL_DEPROJ,
-    ALL_RUNS,
     DEPROJ_NONE,
     ILC,
     cib_dir,
@@ -47,8 +47,7 @@ from hilc_prescriptions import (  # noqa: E402
     tsz_dir,
 )
 
-ps.LMAX = 1085
-LMAX = 1085
+LMAX = ps.LMAX
 OUT = ps.OUT
 TRUTH_RUNS = ("L1_m9", "fgas-8sigma", "Mstar-1sigma")
 
@@ -69,93 +68,76 @@ def _beam2() -> np.ndarray:
     return t
 
 
+OPERATOR = "beam_then_mask"
+
+
 def _cache_path(name: str, *, masked: bool) -> Path:
     tag = "_q5apo" if masked else ""
-    return ILC / "plot_cache" / f"signal_alms_{name}_cib_cmb_lmax1085{tag}.npz"
+    return ILC / "plot_cache" / f"signal_alms_{name}_beamed_lmax{LMAX}{tag}.npz"
 
 
-def _premask(m: np.ndarray, wapo: np.ndarray | None) -> np.ndarray:
-    if wapo is None:
-        return m
+def _k(path: Path) -> np.ndarray:
+    return diag.load_map(path) * 1e-6
+
+
+def _beam(m: np.ndarray, fwhm_arcmin: float) -> np.ndarray:
     if hp.get_nside(m) != ps.NSIDE:
         m = hp.ud_grade(m, ps.NSIDE)
-    return m * wapo
+    return hp.smoothing(m, fwhm=np.radians(fwhm_arcmin / 60.0), pol=False)
+
+
+def _alm(m: np.ndarray, wapo: np.ndarray | None) -> np.ndarray:
+    if wapo is None:
+        if hp.get_nside(m) != ps.NSIDE:
+            m = hp.ud_grade(m, ps.NSIDE)
+        return hp.map2alm(m, lmax=LMAX, iter=0)
+    return hp.map2alm(wapo * m, lmax=LMAX, iter=0)
 
 
 def _apo_mask(name: str) -> np.ndarray:
     return np.asarray(hp.read_map(str(cluster_mask_apo(name)), dtype=np.float64))
 
 
-def _tsz_alms(name: str, *, masked: bool) -> tuple[np.ndarray, ...]:
-    wapo = _apo_mask(name) if masked else None
-    if not masked:
-        budget = ILC / "plot_cache" / f"budget_alms_{name}_lmax{LMAX}.npz"
-        if budget.is_file():
-            z = np.load(budget)
-            print("loaded tSZ", budget, flush=True)
-            return tuple(z[f"tsz_{i}"] for i in range(len(diag.FREQS)))
-    cache = ILC / "plot_cache" / f"tsz_alms_{name}_lmax{LMAX}_q5apo.npz"
-    if masked and cache.is_file():
-        z = np.load(cache)
-        print("loaded tSZ", cache, flush=True)
-        return tuple(z[f"tsz_{i}"] for i in range(len(diag.FREQS)))
-    print(f"map2alm tSZ lmax=1085 ({name}{' q5apo' if masked else ''}) ...", flush=True)
-    out = []
-    for f in diag.FREQS:
-        m = _premask(
-            diag.load_uk_to_k(tsz_dir(name) / f"tSZ_deltaT_{f}GHz_nside4096.fits"),
-            wapo,
-        )
-        out.append(hp.map2alm(m, lmax=LMAX, iter=0))
-        print(f"  tSZ {f} GHz", flush=True)
-        del m
-    if masked:
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        np.savez(cache, **{f"tsz_{i}": a for i, a in enumerate(out)})
-        print("cached", cache, flush=True)
-    return tuple(out)
-
-
-def _cmb_cib_alms(
-    name: str, *, masked: bool
-) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+def _component_alms(name: str, *, masked: bool) -> dict[str, tuple[np.ndarray, ...]]:
     cache = _cache_path(name, masked=masked)
+    n = len(diag.FREQS)
     if cache.is_file():
         z = np.load(cache)
-        cib = tuple(z[f"cib_alm_{i}"] for i in range(len(diag.FREQS)))
         print("loaded", cache, flush=True)
-        return z["cmb_alm"], cib
+        return {
+            key: tuple(z[f"{key}_{i}"] for i in range(n))
+            for key in ("cmb", "cib", "tsz")
+        }
     wapo = _apo_mask(name) if masked else None
-    print(
-        f"map2alm CMB / CIB lmax=1085 ({name}{' q5apo' if masked else ''}) ...",
-        flush=True,
-    )
-    cmb = hp.map2alm(_premask(diag.load_uk_to_k(cmb_path(name)), wapo), lmax=LMAX, iter=0)
-    cib = []
+    print(f"beam then map2alm lmax={LMAX} ({name}{' q5apo' if masked else ''})", flush=True)
+    cmb0 = _k(cmb_path(name))
+    out = {"cmb": [], "cib": [], "tsz": []}
     for f in diag.FREQS:
-        m = _premask(
-            diag.load_uk_to_k(cib_dir(name) / f"CIB_deltaT_{f}GHz_nside4096.fits"),
-            wapo,
+        fwhm = float(diag.BEAM_FWHM_ARCMIN[int(f)])
+        out["cmb"].append(_alm(_beam(cmb0, fwhm), wapo))
+        out["tsz"].append(
+            _alm(_beam(_k(tsz_dir(name) / f"tSZ_deltaT_{f}GHz_nside4096.fits"), fwhm), wapo)
         )
-        cib.append(hp.map2alm(m, lmax=LMAX, iter=0))
-        print(f"  CIB {f} GHz", flush=True)
-        del m
+        out["cib"].append(
+            _alm(_beam(_k(cib_dir(name) / f"CIB_deltaT_{f}GHz_nside4096.fits"), fwhm), wapo)
+        )
+        print(f"  {f} GHz", flush=True)
     cache.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"cmb_alm": cmb}
-    for i, a in enumerate(cib):
-        payload[f"cib_alm_{i}"] = a
-    np.savez(cache, **payload)
+    np.savez(cache, **{f"{key}_{i}": a for key, alms in out.items() for i, a in enumerate(alms)})
     print("cached", cache, flush=True)
-    return cmb, tuple(cib)
+    return {key: tuple(alms) for key, alms in out.items()}
 
 
-def _y_alms(w1: np.ndarray, w2: np.ndarray, alms: tuple[np.ndarray, ...], same_all_freq: bool):
-    bl = diag.bl10()[: w1.shape[1]] * diag.taper()[: w1.shape[1]]
+def _y_alms(w1: np.ndarray, w2: np.ndarray, alms: tuple[np.ndarray, ...]):
+    n = w1.shape[1]
+    bl10 = diag.bl10()[:n]
+    taper = diag.taper()[:n]
+    bnu = diag.bnu()[:, :n]
     y1 = y2 = None
     for a in range(len(diag.FREQS)):
-        alm = alms[0] if same_all_freq else alms[a]
-        c1 = hp.almxfl(alm, w1[a] * bl)
-        c2 = hp.almxfl(alm, w2[a] * bl)
+        filt = bl10 / np.maximum(bnu[a], 1e-30) * taper
+        c1 = hp.almxfl(alms[a], w1[a] * filt)
+        c2 = hp.almxfl(alms[a], w2[a] * filt)
         y1 = c1 if y1 is None else y1 + c1
         y2 = c2 if y2 is None else y2 + c2
     return y1, y2
@@ -233,10 +215,8 @@ def _write_residuals(
     fsky_eff = float(np.mean(mask**2))
     print(f"coupling masked {name} ...", flush=True)
     ws_mask, bins_mask = ps.coupling(mask)
-    cmb_full, cib_full = _cmb_cib_alms(name, masked=False)
-    cmb_q5, cib_q5 = _cmb_cib_alms(name, masked=True)
-    tsz_full = _tsz_alms(name, masked=False) if with_tsz_cib else None
-    tsz_q5 = _tsz_alms(name, masked=True) if with_tsz_cib else None
+    full = _component_alms(name, masked=False)
+    q5 = _component_alms(name, masked=True)
     skies = (
         ("total", False, ones, ws_full, bins_full, 1.0),
         ("masked", True, mask, ws_mask, bins_mask, fsky_eff),
@@ -246,18 +226,19 @@ def _write_residuals(
             path = OUT / f"{name}_{deproj.key}_{kind}_residuals.npz"
             have = path.is_file()
             have_cross = False
-            apo_sht = False
+            operator = ""
             if have:
                 with np.load(path) as z:
                     have_cross = "dl_tsz_cib" in z
-                    apo_sht = bool(z["apodized_sht"]) if "apodized_sht" in z.files else False
-            complete = have and (have_cross or not with_tsz_cib)
-            if complete and ((not masked) or apo_sht):
+                    operator = str(z["operator"]) if "operator" in z.files else ""
+            complete = have and operator == OPERATOR and (have_cross or not with_tsz_cib)
+            if complete:
                 print("skip", path, flush=True)
                 continue
             print(f"residuals {name} {deproj.key} {kind} ...", flush=True)
-            cmb_alm, cib_alms = (cmb_q5, cib_q5) if masked else (cmb_full, cib_full)
-            tsz_alms = tsz_q5 if masked else tsz_full
+            comp = q5 if masked else full
+            cib_alms, cmb_alms = comp["cib"], comp["cmb"]
+            tsz_alms = comp["tsz"] if with_tsz_cib else None
             w1 = diag.hilc_weights(
                 hilc_output_dir(name, masked=masked, real=1, deproj=deproj),
                 deproj.wtag,
@@ -268,10 +249,10 @@ def _write_residuals(
                 deproj.wtag,
                 LMAX,
             )
-            y_cib1, y_cib2 = _y_alms(w1, w2, cib_alms, False)
+            y_cib1, y_cib2 = _y_alms(w1, w2, cib_alms)
             m_cib1, m_cib2 = _to_map(y_cib1), _to_map(y_cib2)
             del y_cib1, y_cib2
-            y_cmb1, y_cmb2 = _y_alms(w1, w2, (cmb_alm,), True)
+            y_cmb1, y_cmb2 = _y_alms(w1, w2, cmb_alms)
             m_cmb1, m_cmb2 = _to_map(y_cmb1), _to_map(y_cmb2)
             del y_cmb1, y_cmb2
             cl_cib = ps.deconv_per_ell(
@@ -294,10 +275,11 @@ def _write_residuals(
                 kind=kind,
                 lmax=LMAX,
                 apodized_sht=bool(masked),
+                operator=OPERATOR,
             )
             print("wrote", path, flush=True)
             if with_tsz_cib:
-                y_tsz1, y_tsz2 = _y_alms(w1, w2, tsz_alms, False)
+                y_tsz1, y_tsz2 = _y_alms(w1, w2, tsz_alms)
                 m_tsz1, m_tsz2 = _to_map(y_tsz1), _to_map(y_tsz2)
                 del y_tsz1, y_tsz2
                 cl_x = ps.deconv_per_ell(
@@ -333,16 +315,24 @@ def main() -> None:
             ell=ell,
         )
 
-    _write_residuals(
-        "L1_m9", ALL_DEPROJ,
-        ones=ones, ws_full=ws_full, bins_full=bins_full, trans_b=trans_b, ell=ell,
-        with_tsz_cib=True,
-    )
-    for name in ALL_RUNS:
-        if name == "L1_m9":
-            continue
+    only = sys.argv[1:]
+    if not only or "L1_m9" in only:
         _write_residuals(
-            name, (DEPROJ_NONE,),
+            "L1_m9", ALL_DEPROJ,
+            ones=ones, ws_full=ws_full, bins_full=bins_full, trans_b=trans_b, ell=ell,
+            with_tsz_cib=True,
+        )
+    # fgas / M* need every deprojection for the recovered-residual figure.
+    # LS8 stays no-deprojection only.
+    variant_deproj = {
+        "fgas-8sigma": ALL_DEPROJ,
+        "Mstar-1sigma": ALL_DEPROJ,
+        "LS8": (DEPROJ_NONE,),
+    }
+    names = tuple(variant_deproj) if not only else tuple(a for a in only if a != "L1_m9")
+    for name in names:
+        _write_residuals(
+            name, variant_deproj[name],
             ones=ones, ws_full=ws_full, bins_full=bins_full, trans_b=trans_b, ell=ell,
         )
 
