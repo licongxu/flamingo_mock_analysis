@@ -301,11 +301,11 @@ def _bin_dl_18(ell: np.ndarray, cl: np.ndarray) -> np.ndarray:
 
 
 def _cib_freq_dl(name: str) -> dict[int, np.ndarray]:
-    z = np.load(ILC / "plot_cache" / f"signal_alms_{name}_cib_cmb_lmax1085.npz")
-    ell = np.arange(1086, dtype=np.float64)
+    z = np.load(ILC / "plot_cache" / f"signal_alms_{name}_beamed_lmax4096.npz")
     out = {}
     for nu in FREQS_PLOT:
-        cl = np.asarray(hp.alm2cl(z[f"cib_alm_{FREQ_IDX[nu]}"]), dtype=np.float64)
+        cl = np.asarray(hp.alm2cl(z[f"cib_{FREQ_IDX[nu]}"]), dtype=np.float64)
+        ell = np.arange(cl.size, dtype=np.float64)
         out[nu] = _bin_dl_18(ell, cl) * SCALE
     return out
 
