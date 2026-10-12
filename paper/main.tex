@@ -1,0 +1,2168 @@
+\documentclass[aps,prd,twocolumn,superscriptaddress,nofootinbib,floatfix]{revtex4-2}
+
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{dcolumn}
+\usepackage{bm}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+% upright differentials
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\LX}[1]{{\color{red} #1}}
+\newcommand{\AC}[1]{{\color{red}AC: #1}}
+
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\begin{document}
+
+\title{Towards a Joint Analysis of tSZ Cluster Counts and the Masked Power Spectrum: Opportunities and Limitations}
+
+\author{Licong Xu}
+\email{lx256@cam.ac.uk}
+\affiliation{Institute of Astronomy, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+\affiliation{Kavli Institute for Cosmology, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+
+\author{Íñigo Zubeldia}
+\affiliation{Institute of Astronomy, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+\affiliation{Kavli Institute for Cosmology, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+\affiliation{DAMTP, Centre for Mathematical Sciences, Wilberforce Road, Cambridge CB3 0WA, UK}
+
+\author{Boris Bolliet}
+\affiliation{Cavendish Astrophysics, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+\affiliation{Kavli Institute for Cosmology, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+
+\author{Anthony Challinor}
+\affiliation{Institute of Astronomy, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+\affiliation{Kavli Institute for Cosmology, University of Cambridge, Madingley Road, Cambridge CB3 0HA, UK}
+\affiliation{DAMTP, Centre for Mathematical Sciences, Wilberforce Road, Cambridge CB3 0WA, UK}
+
+\date{\today}
+
+\begin{abstract}
+The thermal Sunyaev--Zel'dovich (tSZ) signal encodes cosmological information in both individually detected clusters and the unresolved pressure field. We develop a self-consistent framework that jointly analyzes cluster number counts (CNC) and the tSZ power spectrum after the resolved clusters are masked. We show that masking suppresses the non-Gaussian covariance of the tSZ power spectrum and shifts its sensitivity from the massive, low-redshift halos towards lower-mass halos at higher redshift. We validate the framework using \textit{Planck}-like synthetic skies and study how its performance is affected by residual foregrounds. In the absence of residual foregrounds, the masked power spectrum contains substantially more cosmological information than the total power spectrum, and its combination with CNC significantly improves constraints on $\Omega_{\rm m}$ and $\sigma_8$. However, these improvements are strongly reduced after marginalizing over residual foreground amplitudes, in which case CNC dominates the cosmological constraints while the joint analysis primarily improves the determination of the foreground contributions. We then apply the framework to \textit{Planck}-like multifrequency skies from the FLAMINGO hydrodynamical simulations. At fixed cosmology, we find that astrophysical variations change the large-scale shape of the masked tSZ power spectrum. Masking reduces the non-Gaussian sample variance, making these differences potentially distinguishable, although exploiting this information requires accurate modelling of foreground residuals.
+\end{abstract}
+
+
+ 
+\maketitle
+
+%==============================================================================
+\section{Introduction}
+\label{sec:intro}
+%==============================================================================
+The standard cosmological model provides a remarkably successful description of the evolution of the Universe, from the primordial perturbations generated in the early Universe to the formation of the large-scale structure observed today. These initially small perturbations are amplified by gravitational instability, with sufficiently overdense regions undergoing nonlinear collapse to form dark matter halos. Measurements of the late-time matter distribution therefore provide powerful tests of the cosmological model and the growth of structure. Galaxy clusters are the largest gravitationally bound structures in the Universe and trace the highest-density peaks of this distribution. Their mass is dominated by dark matter, while their small baryonic component enables their direct observation through electromagnetic radiation \citep{Allen2011}.
+
+The abundance and spatial distribution of galaxy clusters encode information about the expansion history of the Universe and the growth of cosmic structure. They are particularly sensitive to the matter density parameter, $\Omega_{\rm m}$, and the present-day amplitude of matter fluctuations, $\sigma_8$, defined as the root-mean-square amplitude of the linear matter-density field smoothed on scales of $8h^{-1}$ Mpc. This information can be probed both through the abundance of individually detected clusters and through statistical measurements of the fields sourced by the full halo population \citep{Allen2011,Planck2015XXIV}.
+
+One of the most important observational signatures of galaxy clusters is the thermal Sunyaev--Zel'dovich (tSZ) effect, produced by the inverse-Compton scattering of cosmic microwave background (CMB) photons by hot electrons in the intracluster medium (ICM) \citep{SunyaevZeldovich1972,Carlstrom2002}. The amplitude of the effect is quantified by the dimensionless Compton-$y$ parameter, which is proportional to the line-of-sight integral of the electron pressure. The tSZ surface brightness is unaffected by cosmological surface-brightness dimming, making the effect particularly well suited to detecting massive clusters over a broad redshift range \citep{Carlstrom2002}. Catalogues of tSZ-selected clusters can therefore be used to constrain cosmological parameters through the halo mass function (HMF), provided that the survey selection function and the relation between the tSZ observable and halo mass are accurately modelled \citep{Planck2015XXIV}. The Compton-$y$ field across the sky can also be constructed using component separation techniques through the multifrequency CMB observations, enabling the study of the statistical properties of the tSZ signal across the sky \citep{Planck2015XXII}.
+
+Cosmological information from the tSZ signal can be extracted from the Compton-$y$ map. Because the Compton-$y$ field receives a large contribution from rare, massive halos, it is highly non-Gaussian \citep{Cooray2001,HillPajer2013}. Traditionally, the tSZ analysis of microwave maps is carried out using two complementary statistics. Cluster number counts (CNC) are based on the detection of individual clusters, typically by filtering the maps with templates matched to their expected pressure profiles \citep{Melin2006}. The detected clusters are supplemented by external information on the redshifts and observable--mass relation used to connect the measured observable to the true cluster masses. The tSZ power spectrum characterizes the two-point statistics of the Compton-$y$ field \citep{KomatsuSeljak2002,HillPajer2013}. The measured spectrum can be compared with a halo-model prediction to constrain cosmological and astrophysical parameters. Other summary statistics of the Compton-$y$ field have been studied (see, e.g., \citet{Sabyr:2025}) to maximally extract the information from the Compton-$y$ field.
+
+Previous studies have explored the combination of the CNC measurements with the summary statistics of the tSZ field. \citet{Hurier:2017} and \citet{Salvati:2018} combined cluster number counts with the conventional total tSZ power spectrum, with the former additionally including the tSZ bispectrum. \citet{Rotti_2021} subsequently introduced a signal-to-noise-ratio-based masking of the Compton-$y$ map into resolved and unresolved components and analyzed the power spectrum of the unresolved field. Since the highest peaks of the Compton-$y$ field are sourced by rare, massive clusters, masking these objects reduces the additional covariance associated with the strong non-Gaussianity of the field \citep{OsatoTakada2021}. This decomposition also changes the halo populations probed by the two observables: CNC primarily retain information from individually detected, massive clusters, whereas the unresolved power spectrum receives a larger contribution from lower-mass and higher-redshift halos. \citet{Rotti_2021} demonstrated the resulting statistical benefits of masking and identified a joint analysis of CNC and the unresolved tSZ power spectrum as a natural extension of this approach, but did not implement a joint likelihood for the two observables.
+
+However, the practical gain from combining CNC with the unresolved tSZ power spectrum is not guaranteed, and depends on several aspects of the analysis. Masking reduces the non-Gaussian covariance of the tSZ field, but simultaneously removes part of the tSZ signal while leaving residual foreground contamination largely unaffected. The cosmic infrared background (CIB) is particularly important because it traces the same underlying large-scale structure as the tSZ signal and can therefore affect both cluster detection and the reconstructed Compton-$y$ field. In addition, baryonic feedback modifies the thermal pressure distribution within halos, with an impact that depends on specific halo populations, and may potentially differ between the total and masked tSZ signal. The performance of the joint analysis therefore depends on many factors such as cluster selection, masking, foreground contamination, and component separation.
+
+In this work, we develop a self-consistent framework for the joint analysis of CNC and the masked tSZ power spectrum. A common signal-to-noise selection is applied to the cluster catalogue and the Compton-$y$ map, ensuring that both observables are described using the same underlying halo population, observable--mass relation, and survey selection function. We first investigate this framework using synthetic \textit{Planck}-like cluster catalogues and full-sky Compton-$y$ maps generated from a common halo-model forward model. These controlled realizations allow us to identify the halo population probed by each observable and to quantify the cosmological information contained in CNC, the total and masked tSZ power spectra, and their joint combinations. We perform these comparisons both in the signal-only case and in the presence of foreground residuals.
+
+We then test the framework using the FLAMINGO suite of large-volume cosmological hydrodynamical simulations \citep{Schaye2023}. We make multifrequency mock sky maps with correlated tSZ and CIB lightcone maps, and test cluster detection and power spectrum recovery using component separation. At fixed cosmology, we study how the CNC and masked tSZ power spectrum respond to changes in the calibrated gas fractions and stellar masses. These end-to-end tests allow us to assess the impact of correlated CIB emission on cluster selection and power-spectrum reconstruction, while also testing the sensitivity of the two observables to changes in baryonic physics.
+
+% In contrast to analytic halo models, hydrodynamical simulations evolve dark matter and baryons self-consistently and predict the resulting distribution of thermal pressure without imposing a universal parametric pressure profile. The FLAMINGO simulation spans a range of simulation volumes, numerical resolutions, cosmologies, and calibrated galaxy-formation models, including variations in stellar and active galactic nucleus (AGN) feedback. It therefore provides a suitable setting in which to assess the halo-model description and investigate how cluster masking modifies the scale dependence of the tSZ power spectrum and its sensitivity to baryonic physics.
+
+The remainder of this paper is organized as follows. Section~\ref{sec:theory} reviews the cosmological information in the tSZ power spectrum and CNC. Section~\ref{sec:modelling} describes the halo, pressure-profile, observable--mass, and survey-selection models. In Section~\ref{sec:joint_analysis}, we formulate the joint CNC and masked-power-spectrum analysis, including its covariance, and Section~\ref{sec:kernels} identifies the halo populations contributing to each observable. Section~\ref{sec:methods} presents the synthetic-data and FLAMINGO analyses. We report the results in Section~\ref{sec:results} and discuss their implications and limitations in Section~\ref{sec:discussion}.
+
+
+%==============================================================================
+\section{Cosmological information from the tSZ signal}
+\label{sec:theory}
+%==============================================================================
+The tSZ effect is a powerful probe of both cosmology and astrophysics. On large angular scales, the signal is dominated by hot electrons in massive galaxy clusters and is therefore sensitive to the abundance of massive halos and the growth of cosmic structure. On smaller angular scales, it becomes increasingly sensitive to the internal gas distribution within clusters and groups, providing information about baryonic processes such as feedback \citep{Carlstrom2002,HillPajer2013}.
+
+The intensity of the tSZ effect in a given direction on the sky, $\hat{\bm{n}}$, is characterized by the thermal Compton-$y$ parameter, defined as
+\begin{equation}
+y(\hat{\bm{n}})
+=
+\int
+n_{\mathrm{e}}
+\frac{k_{\mathrm{B}}T_{\mathrm{e}}}{m_{\mathrm{e}}c^2}
+\sigma_{\mathrm{T}}
+\mathrm{d}s,
+\label{eq:compton_y}
+\end{equation}
+where $k_{\mathrm{B}}$ is the Boltzmann constant, $\sigma_{\mathrm{T}}$ is the Thomson scattering cross section, and $m_{\mathrm{e}}$, $n_{\mathrm{e}}$, and $T_{\mathrm{e}}$ are the electron mass, number density, and temperature, respectively. The integral is performed along the physical line-of-sight distance $s$. The contribution of the tSZ effect to a sky map observed at frequency $\nu$, expressed in thermodynamic CMB temperature units, is given by
+\begin{equation}
+\frac{\Delta T_{\mathrm{tSZ}}(\nu,\hat{\bm{n}})}
+{T_{\mathrm{CMB}}}
+=
+g(\nu)y(\hat{\bm{n}}).
+\label{eq:tsz_temperature}
+\end{equation}
+Neglecting relativistic corrections, the spectral function is given by $g(\nu)=x\coth(x/2)-4$, with $x=h\nu/(k_{\mathrm{B}}T_{\mathrm{CMB}})$. Here $\Delta T_{\mathrm{tSZ}}(\nu,\hat{\bm{n}})$ denotes the tSZ contribution to the temperature anisotropy measured in the frequency map.
+
+A map of the Compton-$y$ parameter can be reconstructed from multifrequency observations by exploiting the characteristic spectral dependence of the tSZ signal \citep{Planck2015XXII}. The resulting Compton-$y$ map contains cumulative signal from galaxy clusters, groups, and diffuse hot gas throughout the Universe. Different summary statistics can then be extracted from this map to constrain cosmological and astrophysical parameters. The angular power spectrum provides a statistical measure of fluctuations in the Compton-$y$ field and can be modelled using the halo-model framework \citep{CooraySheth2002,KomatsuSeljak2002,HillPajer2013}. Individual galaxy clusters can also be resolved using the Multi-Frequency Matched Filter (MMF) approach, allowing the abundance of tSZ-selected clusters to be measured \citep{Melin2006}.
+
+\subsection{tSZ Power Spectrum}
+The angular power spectrum of the Compton-$y$ map can be computed from its spherical harmonic coefficients as
+\begin{equation}
+    \hat{C}_{\ell}^{yy}
+    =
+    \frac{1}{2\ell+1}
+    \sum_{m=-\ell}^{\ell}
+    \left|y_{\ell m}\right|^2,
+    \label{eq:tsz_power_spectrum_estimator}
+\end{equation}
+where $y_{\ell m}$ denotes the spherical harmonic coefficient of the Compton-$y$ field. Within the halo-model framework, the tSZ power spectrum can be written as the sum of one-halo and two-halo contributions,
+\begin{equation}
+C_{\ell}^{yy}
+=
+C_{\ell}^{yy,\mathrm{1h}}
++
+C_{\ell}^{yy,\mathrm{2h}}.
+\label{eq:tsz_halo_model_decomposition}
+\end{equation}
+The one-halo term describes correlations sourced by gas within the same halo, whereas the two-halo term accounts for correlations between gas in two different halos.
+
+The one-halo contribution can be understood as the population average of the squared harmonic-space pressure profile of individual clusters, given by
+\begin{equation}
+C_{\ell}^{yy,\mathrm{1h}}
+=
+\left\langle
+\left|
+y_{\ell}(M,z;\zeta_{\rm obs})
+\right|^2
+\right\rangle_{\mathrm{halos}}.
+\label{eq:1haloavg}
+\end{equation}
+Here $y_{\ell}(M,z,\zeta_{\rm obs})$ denotes the line-of-sight projected Fourier transform of the three-dimensional halo profile for a halo of mass $M$ and redshift $z$,
+\begin{equation}
+y_{\ell}(M,z)
+=
+\frac{4\pi r_{\mathrm{s}}}{\ell_{\mathrm{s}}^2}
+\int_{0}^{\infty}
+\mathrm{d}x
+x^2 p(x;M,z)
+\frac{\sin\left(\ell x/\ell_{\mathrm{s}}\right)}
+{\ell x/\ell_{\mathrm{s}}},
+\label{eq:projected_pressure_transform}
+\end{equation}
+where $x=r/r_{\mathrm{s}}$, $\ell_{\mathrm{s}}=D_{\mathrm{A}}(z)/r_{\mathrm{s}}$, $r_{\mathrm{s}}$ is the characteristic scale radius of the halo and $p(x;M,z)$ is its three-dimensional electron pressure profile. The variable $\zeta_{\rm obs}$ represents an additional observable or selection variable associated with the halo such as the observed tSZ signal-to-noise ratio $q$. For convenience, we also introduce the notation, $\langle X \rangle$, to denote the average of the quantity $X$ weighted by the halo population. For the full halo population the one-halo term is
+therefore given by
+\begin{align}
+C_{\ell}^{yy,\mathrm{1h}}
+={}&
+\int_{0}^{z_{\mathrm{max}}}
+\mathrm{d}z\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+\nonumber\\
+&\times
+\int_{M_{\mathrm{min}}}^{M_{\mathrm{max}}}
+\mathrm{d}M\,
+\frac{\mathrm{d}n_{\mathrm{h}}(M,z)}
+{\mathrm{d}M}
+\left|
+y_{\ell}(M,z)
+\right|^2,
+\label{eq:tsz_one_halo_full}
+\end{align}
+where $\mathrm{d}V/(\mathrm{d}z\,\mathrm{d}\Omega)$ is the differential
+comoving volume element per unit redshift and solid angle while
+$\mathrm{d}n_{\mathrm{h}}/\mathrm{d}M$ is the halo mass function (HMF).
+
+The two-halo contribution arises from large-scale clustering of the dark matter halos. It describes the correlation between the spatial positions of the halos, given by 
+\begin{equation}
+C_{\ell}^{yy,\mathrm{2h}}
+=
+\left\langle
+b_{\mathrm{h}}(M,z)
+y_{\ell}(M,z,\zeta_{\rm obs})
+\right\rangle_{\mathrm{halos}}^2
+P_{\mathrm{lin}}(k_{\ell},z).
+\label{eq:tsz_two_halo}
+\end{equation}
+where $P_{\mathrm{lin}}(k_{\ell},z)$ is the linear matter power spectrum evaluated at $k_{\ell}=(\ell+1/2)/\chi(z)$, and $b_{\mathrm{h}}(M,z)$ is the linear halo bias. For the full halo population this expression becomes
+\begin{equation}
+\begin{aligned}
+C_{\ell}^{yy,\mathrm{2h}}
+={}&
+\int_{0}^{z_{\mathrm{max}}}
+\mathrm{d}z\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+\\
+&\times
+\left[
+\int_{M_{\mathrm{min}}}^{M_{\mathrm{max}}}
+\mathrm{d}M\,
+\frac{\mathrm{d}n_{\mathrm{h}}(M,z)}
+{\mathrm{d}M}
+b_{\mathrm{h}}(M,z)
+y_{\ell}(M,z)
+\right]^2
+\\
+&\times
+P_{\mathrm{lin}}(k_{\ell},z).
+\end{aligned}
+\label{eq:tsz_two_halo_full}
+\end{equation}
+We adopt the linear halo bias of \citet{Tinker:2010},
+\begin{equation}
+b_{\mathrm{h}}(M,z)
+=
+1
+-
+A\,
+\frac{\nu^{a}}{\nu^{a}+\delta_{\mathrm{c}}^{a}}
++
+\mathcal{B}\,\nu^{b}
++
+C\,\nu^{c},
+\label{eq:tinker_bias}
+\end{equation}
+where $\nu=\delta_{\mathrm{c}}/\sigma(M,z)$ is the peak height with
+$\delta_{\mathrm{c}}\simeq 1.686$, and the coefficients
+$(A,a,\mathcal{B},b,C,c)$ are the \citet{Tinker:2010} fits as a function of
+the spherical-overdensity threshold (converted to a mean-matter definition
+in the \texttt{hmfast} implementation used here).
+
+\subsection{Cluster Number Counts}
+Galaxy clusters detected through their tSZ signal provide a complementary cosmological observable to the tSZ power spectrum \citep{Planck2015XXIV,ZubeldiaBolliet2024}. The expected number of clusters observed by a survey in a redshift interval $[z_i,z_{i+1}]$ is given by
+\begin{equation}
+N_i
+=
+\int_{z_i}^{z_{i+1}}
+\mathrm{d}z
+\frac{\mathrm{d}N}{\mathrm{d}z},
+\label{eq:cluster_counts_redshift_bin}
+\end{equation}
+where the differential number count is given by
+\begin{equation}
+\frac{\mathrm{d}N}{\mathrm{d}z}
+=
+\int \mathrm{d}\Omega
+\frac{\mathrm{d}V}{\mathrm{d}z\mathrm{d}\Omega}
+\int \mathrm{d}M
+\frac{\mathrm{d}n_{\mathrm{h}}}{\mathrm{d}M}(M,z)
+\hat{\chi}(M,z,\hat{\bm{n}}),
+\label{eq:dNdz}
+\end{equation}
+where $\hat{\chi}(M,z,\hat{\bm{n}})$ denotes the completeness function which gives the probability that a cluster of mass $M$ and redshift $z$, located in the direction $\hat{\bm{n}}$, is detected by the survey.
+
+For a catalogue selected using an observed quantity $\zeta_{\mathrm{obs}}$ and assuming that a redshift measurement is available for each detected cluster, the expected number of clusters in the redshift bin $[z_i,z_{i+1}]$ and observable bin $[\zeta_j,\zeta_{j+1}]$ is
+\begin{equation}
+    N_{ij}
+    =
+    \int_{z_i}^{z_{i+1}}
+    \mathrm{d}z
+    \int_{\zeta_j}^{\zeta_{j+1}}
+    \mathrm{d}\zeta_{\mathrm{obs}}\,
+    \frac{\mathrm{d}^2N}
+    {\mathrm{d}z\,\mathrm{d}\zeta_{\mathrm{obs}}}.
+    \label{eq:cluster_counts_binned}
+\end{equation}
+The differential number counts are given by
+\begin{equation}
+\begin{aligned}
+    \frac{\mathrm{d}^2N}
+    {\mathrm{d}z\,\mathrm{d}\zeta_{\mathrm{obs}}}
+    ={}&
+    \int \mathrm{d}\Omega\,
+    \frac{\mathrm{d}V}
+    {\mathrm{d}z\,\mathrm{d}\Omega}
+    \\
+    &\times
+    \int \mathrm{d}M\,
+    \frac{\mathrm{d}n_{\mathrm{h}}(M,z)}
+    {\mathrm{d}M}
+    P\left(
+        \zeta_{\mathrm{obs}}
+        \mid M,z,\hat{\bm{n}}
+    \right).
+\end{aligned}
+\label{eq:cluster_counts_differential}
+\end{equation}
+Here $P(\zeta_{\mathrm{obs}}\mid M,z,\hat{\bm{n}})$ is the probability distribution of the observed selection quantity for a halo of mass $M$ at redshift $z$ and sky position $\hat{\bm{n}}$. It incorporates the tSZ mass--observable relation, intrinsic scatter, measurement noise, and spatial variations in the survey sensitivity. 
+
+% For tSZ experiments, clusters are detected through their tSZ signal-to-noise ratio, $q$, given by 
+% \begin{equation}
+%     q(M,z) = \frac{y_0(M,z)}{\sigma_{y_0}(\theta_{500}, \hat{\bm{n}})},
+%     \label{eq:snr_mean}
+% \end{equation}
+% where $y_0$ is the Compton-$y$ value evaluated at the cluster center, $\theta_{500} = r_{500c}/d_A$, and $\sigma_{y_0}$ is the noise from matched filter detection. 
+For tSZ experiments, clusters are detected through their tSZ signal-to-noise ratio, $q$ \citep{Planck2015XXIV}. The clusters are subsequently assigned a measured redshift, $z$, through external probes. The cluster number count, $N(q,z)$, is therefore expressed in terms of these two observables. Following Equation \ref{eq:cluster_counts_differential}, the distribution of clusters in redshift and signal-to-noise can be written as
+\begin{equation}
+\begin{aligned}
+\frac{\mathrm{d}^{2}N}
+{\mathrm{d}z\,\mathrm{d}q}
+={}&
+\int
+\mathrm{d}\Omega_{\rm mask}\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+\\
+&\times
+\int \mathrm{d}M\,
+\frac{\mathrm{d}n_{\mathrm{h}}(M,z)}
+{\mathrm{d}M}\,
+P\!\left[
+q\mid\bar{q}_m(M,z,\hat{\bm{n}})
+\right],
+\end{aligned}
+\label{eq:cluster_counts_qz}
+\end{equation}
+where $P\!\left[q\mid\bar{q}_m(M,z,\hat{\bm{n}})\right]$ is the distribution of $q$ given the mean signal-to-noise ratio $\bar{q}_m(M,z,\hat{\bm{n}})$, predicted by the model for a cluster of mass $M$ and redshift $z$ located at sky position $\hat{\bm{n}}$ (the scaling relation). Meanwhile, $\bar{q}_m$ can be defined as the ratio of the mean tSZ signal, $\bar{y}_0$, which is the Compton-$y$ value evaluated at the cluster center, and the noise from the MMF detection, $\sigma_{y_0}(\bar{\theta}_{500},\hat{\bm{n}})$,
+\begin{equation}
+\bar q_m(M,z,\hat{\bm n})
+=
+\frac{
+\bar y_{0}(M,z)
+}{
+\sigma_{y_{0}}
+\left[
+\bar\theta_{500}(M,z),\hat{\bm n}
+\right]
+}.
+\label{eq:mean_snr}
+\end{equation}
+Note that the filter noise $\sigma_{y_0}$ depends on the sky location $\hat{\bm{n}}$ and the cluster angular size, $\theta_{500}$, which introduces additional dependence on mass and redshift. 
+
+For clusters detected above a signal-to-noise threshold, $q_{\rm cat}$, the redshift distribution of detected clusters is obtained by integrating Equation \ref{eq:cluster_counts_differential} distribution over $q>q_{\rm cat}$ with $\zeta_{\rm obs}=q$. Following Equation \ref{eq:dNdz}, the completeness function can be written as
+\begin{equation}
+\hat{\chi}(M,z,\hat{\bm n})
+=
+\int_{q_{\mathrm{cat}}}^{\infty}
+\mathrm{d}q\,
+P\left[
+q\mid \bar q_m(M,z,\hat{\bm n})
+\right].
+\label{eq:cluster_completeness}
+\end{equation}
+Equivalently, the completeness function can be expressed in terms of the underlying cluster observables. It is necessary to consider the uncertainty in observed cluster quantities and the survey selection function. Hence, Equation \ref{eq:cluster_completeness} can also be written as
+\begin{equation}
+\begin{aligned}
+\hat{\chi}(M,z,\hat{\bm n})
+={}&
+\int \mathrm{d}\ln y_{0}
+\int \mathrm{d}\theta_{500}\,
+P\left(
+\ln y_{0},\theta_{500}\mid M,z
+\right)
+\\
+&\times
+\chi\left(
+y_{0},\theta_{500},\hat{\bm n}
+\right),
+\end{aligned}
+\label{eq:effective_completeness}
+\end{equation}
+where $P\left(\ln y_{0},\theta_{500}\mid M,z \right)$ is the distribution of the intrinsic cluster observables at fixed mass and redshift, and $\chi\left(
+y_{0},\theta_{500},\hat{\bm n} \right)$ is the survey selection function.
+
+% Cluster number counts are particularly sensitive to the amplitude and growth of matter fluctuations because the abundance of massive haloes depends strongly on cosmological parameters. Their interpretation nevertheless requires accurate modelling of the mass--observable relation and the survey selection function.
+
+\subsection{Extracting tSZ observables from multifrequency maps}
+The two tSZ observables considered in this work are usually extracted from multifrequency microwave maps. In addition to the tSZ signal, these maps contain contributions from the primary CMB, astrophysical foregrounds, and instrumental noise. Separating the tSZ signal from these components requires exploiting its distinct frequency dependence across the observed channels.
+
+We write the observed multifrequency sky maps as a vector $\bm{d}(\hat{\bm{n}})$ with one entry per frequency channel. For $N_\nu$ channels and $N_{\rm fg}$ non-tSZ components,
+\begin{equation}
+\bm{d}(\hat{\bm{n}})
+=
+\bm{a}\,y(\hat{\bm{n}})
++
+\bm{B}\,\bm{f}(\hat{\bm{n}})
++
+\bm{n}(\hat{\bm{n}}),
+\label{eq:multifrequency_data_model}
+\end{equation}
+where $y(\hat{\bm{n}})$ is the underlying Compton-$y$ field. The vectors $\bm{d}$, $\bm{a}$, and $\bm{n}$ each have shape $N_\nu$, and $\bm{a}$ is the tSZ spectral response. The matrix
+$\bm{B}=(\bm{b}_1,\ldots,\bm{b}_{N_{\rm fg}})$
+has shape $N_\nu\times N_{\rm fg}$: its columns are the spectral responses of the non-tSZ components, and $\bm{f}(\hat{\bm{n}})$ is the spatial amplitude of the components with shape $N_{\rm fg}$. The vector $\bm{n}(\hat{\bm{n}})$ denotes instrumental noise. 
+
+In harmonic space, $\bm{d}_{\ell m}$ is the same $N_\nu$-vector of frequency maps. A Compton-$y$ map can be reconstructed using a harmonic internal linear combination (HILC),
+\begin{equation}
+\hat{y}_{\ell m}
+=
+\bm{w}_{\ell}^{T}\bm{d}_{\ell m},
+\label{eq:hilc_estimator}
+\end{equation}
+where $\bm{w}_{\ell}$ is the weight vector of shape $N_\nu$. The weights are chosen to minimize the variance of the reconstructed field while preserving unit response to the tSZ signal, $\bm{w}_{\ell}^{T}\bm{a}=1$. The minimum-variance HILC weights are
+\begin{equation}
+\bm{w}_{\ell}
+=
+\frac{
+\bm{C}_{\ell}^{-1}\bm{a}
+}{
+\bm{a}^{T}\bm{C}_{\ell}^{-1}\bm{a}
+},
+\label{eq:hilc_weights}
+\end{equation}
+where $\bm{C}_{\ell}$ is the $N_\nu\times N_\nu$ frequency--frequency covariance matrix of the multifrequency maps at multipole $\ell$.
+
+In some cases, certain foreground components can bias the reconstruction of the signal of interest, particularly when they are strongly correlated with it. In such cases, a constrained ILC may be used. If the SED of a foreground is known, an additional constraint can be imposed on the ILC weights such that the response to this component vanishes while preserving unit response to the signal of interest, at the cost of increasing the variance of the reconstructed map. For a foreground component with spectral response $\bm{b}$, the weights are required to satisfy $\bm{w}_{\ell}^{T}\bm{a}=1$ and $\bm{w}_{\ell}^{T}\bm{b}=0$. Minimizing the variance subject to these constraints gives
+\begin{equation}
+\bm{w}_{\ell}
+=
+\bm{C}_{\ell}^{-1}\bm{A}
+\left(
+\bm{A}^{T}\bm{C}_{\ell}^{-1}\bm{A}
+\right)^{-1}
+\bm{e},
+\label{eq:constrained_hilc_weights}
+\end{equation}
+where $\bm{A}=(\bm{a},\bm{b})$, and $\bm{e}=(1,0)^{T}$.
+
+Resolved clusters can instead be detected directly from the multifrequency maps using a multi-frequency matched filter (MMF) \citep{Melin2006,2023MNRAS.522.5123Z}. We model the flat-sky Fourier transform of a cluster's Compton-$y$ profile as $y_{\rm cl}(\bm{\ell})=y_0\,y_{\rm t}(\bm{\ell})$, where $y_0$ is the central Compton-$y$ amplitude and $y_{\rm t}(\bm{\ell})$ is a frequency-independent spatial template. In the flat-sky approximation, the MMF estimator for $y_0$ is
+\begin{equation}
+\hat{y}_0^{\rm MMF}
+=
+\left(N^{\rm MMF}\right)^{-1}
+\int
+\frac{\mathrm{d}^2\bm{\ell}}{(2\pi)^2}\,
+y_{\rm t}^{*}(\bm{\ell})\,
+\bm{a}^{T}
+\bm{C}_{\ell}^{-1}
+\bm{d}(\bm{\ell}),
+\label{eq:mmf_estimator}
+\end{equation}
+with normalization
+\begin{equation}
+N^{\rm MMF}
+=
+\int
+\frac{\mathrm{d}^2\bm{\ell}}{(2\pi)^2}\,
+|y_{\rm t}(\bm{\ell})|^2\,
+\bm{a}^{T}
+\bm{C}_{\ell}^{-1}
+\bm{a},
+\label{eq:mmf_normalization}
+\end{equation}
+where $\ell=|\bm{\ell}|$ and $\bm{C}_{\ell}$ is the same covariance as in Eq.~\eqref{eq:hilc_weights}. The variance of the recovered amplitude is $\sigma_{y_0}^2=(N^{\rm MMF})^{-1}$, and the detection signal-to-noise ratio is
+\begin{equation}
+\hat{q}
+=
+\frac{\hat{y}_0^{\rm MMF}}{\sigma_{y_0}}.
+\label{eq:mmf_snr}
+\end{equation}
+
+Similar to the constrained ILC, foreground contamination in cluster detection can be mitigated with a spectrally constrained MMF (scMMF). When the SED of a contaminating foreground is known, the filter is constructed with the same constraints, $\bm{w}^{T}\bm{a}=1$ and $\bm{w}^{T}\bm{b}=0$. This suppresses the foreground-induced bias in the detected signal-to-noise ratio at the cost of increasing the MMF variance. The scMMF estimator for the central Compton-$y$ amplitude is
+\begin{equation}
+\begin{aligned}
+\hat{y}_0^{\rm scMMF}
+={}&
+\left(N^{\rm scMMF}\right)^{-1}
+\int
+\frac{\mathrm{d}^2\bm{\ell}}{(2\pi)^2}\,
+y_{\rm t}^{*}(\bm{\ell})
+\\
+&\times
+\frac{
+\bm{e}^{T}
+\left[
+\bm{A}^{T}
+\bm{C}_{\ell}^{-1}
+\bm{A}
+\right]^{-1}
+\bm{A}^{T}
+\bm{C}_{\ell}^{-1}
+\bm{d}(\bm{\ell})
+}{
+\bm{e}^{T}
+\left[
+\bm{A}^{T}
+\bm{C}_{\ell}^{-1}
+\bm{A}
+\right]^{-1}
+\bm{e}
+},
+\end{aligned}
+\label{eq:scmmf_estimator}
+\end{equation}
+where $\bm{A}$ and $\bm{e}$ are the same constraint matrix and unit vector as in Eq.~\eqref{eq:constrained_hilc_weights}. The normalization is
+\begin{equation}
+N^{\rm scMMF}
+=
+\int
+\frac{\mathrm{d}^2\bm{\ell}}{(2\pi)^2}\,
+\frac{
+|y_{\rm t}(\bm{\ell})|^2
+}{
+\bm{e}^{T}
+\left[
+\bm{A}^{T}
+\bm{C}_{\ell}^{-1}
+\bm{A}
+\right]^{-1}
+\bm{e}
+}.
+\label{eq:scmmf_normalization}
+\end{equation}
+% and the scMMF signal-to-noise ratio is Eq.~\eqref{eq:mmf_snr} with $\hat{y}_0^{\rm MMF}$ replaced by $\hat{y}_0^{\rm scMMF}$ and $\sigma_{y_0}^2=(N^{\rm scMMF})^{-1}$. The iterative implementation of this filter, used for the FLAMINGO catalogues below, is the sciMMF.
+
+
+\section{Modelling the tSZ Observables}
+\label{sec:modelling}
+In this section, we specify the theoretical ingredients required to model the tSZ power spectrum and CNC. This includes the halo mass function, intracluster pressure profile, observable--mass relations, and survey selection function.
+
+% The central idea is to divide the halo population according to the cluster-selection criterion. Clusters that satisfy the detection threshold are included in the cluster catalogue and masked from the Compton-$y$ map while objects below the threshold remain in the map and contribute to the measured tSZ power spectrum. The two observables therefore probe complementary and non-overlapping halo populations.
+\subsection{Halo Mass Function}
+We define the cluster mass as $M_{500\mathrm{c}}$, which is the mass enclosed within a radius $R_{500\mathrm{c}}$ where the mean interior density is 500 times the critical density of the Universe at the cluster redshift:
+\begin{equation}
+    M_{500\mathrm{c}}
+    =
+    \frac{4\pi}{3}
+    R_{500\mathrm{c}}^3
+    500\rho_{\mathrm{c}}(z).
+    \label{eq:m500c_definition}
+\end{equation}
+Here
+\begin{equation}
+    \rho_{\mathrm{c}}(z)
+    =
+    \frac{3H^2(z)}{8\pi G}
+    \label{eq:critical_density}
+\end{equation}
+is the critical density at redshift $z$, and $H(z)$ is the Hubble parameter.
+
+We model the abundance of halos using the HMF given by \citet{Tinker:2008ff} evaluated for the $M_{500\mathrm{c}}$ mass definition.
+The differential halo abundance is written as
+\begin{equation}
+    \frac{\mathrm{d}n_{\mathrm{h}}}{\mathrm{d}M_{500\mathrm{c}}}
+    =
+    f(\sigma,z)
+    \frac{\rho_{\mathrm{m},0}}{M_{500\mathrm{c}}}
+    \frac{\mathrm{d}\ln \sigma^{-1}}
+    {\mathrm{d}M_{500\mathrm{c}}},
+    \label{eq:tinker_hmf}
+\end{equation}
+where $\rho_{\mathrm{m},0}$ is the mean matter density at $z=0$, and $\sigma(M,z)$ is the standard deviation of the linear density field smoothed within a sphere of radius $R =\left[3M/(4\pi\rho_{\mathrm{m},0})\right]^{1/3}$. The multiplicity function
+$f(\sigma,z)$ is parametrized as
+\begin{equation}
+f(\sigma,z)
+=
+A(z)
+\left[
+\left(\frac{\sigma}{b(z)}\right)^{-a(z)}
++ 1
+\right]
+\exp\left(-\frac{c}{\sigma^2}\right),
+\label{eq:tinker_multiplicity}
+\end{equation}
+where the parameters $A$, $a$, $b$, and $c$ are evaluated using the fitting relations of \citet{Tinker:2008ff}.
+
+\subsection{Pressure Profile}
+The Compton-$y$ parameter is proportional to the pressure integrated along the line of sight. In this work, we model the pressure profile of clusters using the generalized Navarro-Frenk-White (GNFW) pressure profile of the form
+\begin{equation}
+    p(x;M,z) = C(M,z) \,
+    \frac{(c_{500}x)^{-\gamma}}
+    {\left[1 + (c_{500}x)^\alpha\right]^{(\gamma-\beta)/\alpha}},
+    \label{eq:gnfw}
+\end{equation}
+with $x = r/r_s$ and a normalization $C(M,z)$ depending on mass and redshift. Following \citet{Arnaud2010}, we adopt the normalization factor as
+\begin{align}
+    C(M_{500\mathrm{c}},z)
+    ={}& 13.41
+    \left(\frac{h}{0.7}\right)^2
+    \left(\frac{H(z)}{H_0}\right)^{8/3}
+    \nonumber\\
+    &\times
+    \left[
+        \frac{M_{500\mathrm{c}}h/B}
+        {0.7\times 3\times10^{14}\,M_\odot}
+    \right]^{2/3+0.12}
+    \,\mathrm{eV\,cm^{-3}},
+    \label{eq:pressure_normalisation}
+\end{align}
+where $B\equiv 1/(1-b)$ is the hydrostatic mass-bias parameter,
+such that the hydrostatic mass is
+$M_{500\mathrm{c}}^{\mathrm{HSE}}=M_{500\mathrm{c}}/B$.
+
+\subsection{Observable-mass relations}
+\label{subsec:obs-massrelations}
+An important part of the cluster count model is the mapping between the cluster observables to the halo mass and redshift \citep{Planck2015XXIV,ZubeldiaBolliet2024}. This mapping is described by a conditional probability distribution $P(q\mid M_{500\mathrm{c}},z)$, which gives the probability of observing
+a signal-to-noise ratio $q$ for a halo of mass $M_{500\mathrm{c}}$ at
+redshift $z$. The mean value of signal-to-noise ratio, $\bar{q}_m$, is specified by scaling relations $\bar{y}_0(M_{500c},z)$ and $\bar{\theta}_{500}(M_{500c},z)$.
+
+We relate the mean tSZ signal $\bar{y}_0$ to the cluster mass and redshift via
+\begin{equation}
+\begin{aligned}
+\bar{y}_0(M_{500\mathrm{c}},z)
+={}&
+10^{A_{\mathrm{SZ}}}
+\left[
+    \frac{M_{500\mathrm{c}}h/B}
+    {0.7\times 3\times 10^{14}\,M_\odot}
+\right]^{\alpha_{\mathrm{SZ}}}
+\\
+&\times
+\left(\frac{H(z)}{H_0}\right)^2
+\left(\frac{h}{0.7}\right)^{-1/2},
+\end{aligned}
+\label{eq:y0_scaling_relation}
+\end{equation}
+where $A_{\rm SZ}$ parameterizes the tSZ signal amplitude and $\alpha_{\rm SZ}$ its mass dependence. The mean angular size of the cluster is given by 
+\begin{equation}
+\begin{aligned}
+\bar{\theta}_{500}(M_{500\mathrm{c}},z)
+={}&
+\theta_\star
+\left(\frac{h}{0.7}\right)^{-2/3}
+\left[
+    \frac{M_{500\mathrm{c}}/B}{3\times10^{14}\,M_\odot}
+\right]^{1/3}
+\\
+&\times
+\left(\frac{H(z)}{H_0}\right)^{-2/3}
+\left[\frac{D_A(z)}{500\,{\rm Mpc}}\right]^{-1},
+\end{aligned}
+\label{eq:theta500_scaling_relation}
+\end{equation}
+where $\theta_\star = 6.997\,\mathrm{arcmin}$.
+
+At fixed mass and redshift, the tSZ signal varies between clusters due to differences in their thermodynamic properties. We account for this cluster-to-cluster variation by introducing an intrinsic log-normal scatter around the mean observable-mass relation. Specifically, we assume that $y_0(M,z)$ follows a log-normal distribution about its mean value $\bar{y}_0(M,z)$ with logarithmic scatter $\sigma_{\ln Y}$, and we neglect scatter in the cluster angular size by assuming that $\theta_{500}$ is fixed at its mean value $\bar{\theta}_{500}(M,z)$:
+\begin{equation}
+\begin{aligned}
+P\!\left(\ln y_0,\theta_{500}\mid M,z\right)
+={}&
+\frac{1}{\sqrt{2\pi}\sigma_{\ln Y}}\,
+e^{-\left[\ln y_0-\ln \bar{y}_0(M,z)\right]^2/
+\left(2\sigma_{\ln Y}^{2}\right)}
+\\
+&\times
+\delta_{\mathrm D}\!\left[
+\theta_{500}-\bar{\theta}_{500}(M,z)
+\right].
+\end{aligned}
+\label{eq:intrinsic_observable_distribution}
+\end{equation}
+where $\delta_{\mathrm{D}}$ is the Dirac delta function. 
+
+The distribution of the measured signal-to-noise ratio can then be written as
+\begin{equation}
+\begin{aligned}
+&P\left[
+q\mid \bar q_m(M,z,\hat{\bm n})
+\right]
+\\
+&\quad =
+\int \mathrm{d}\ln q_m\,
+P\left(q\mid q_m\right)
+P\left[
+\ln q_m
+\mid
+\bar q_m(M,z,\hat{\bm n})
+\right],
+\end{aligned}
+\label{eq:q_distribution_convolution}
+\end{equation}
+where $P\left(q\mid q_m\right)$ is the distribution of observed signal-to-noise, $q$, conditioned on the underlying model value $q_m$, and $P\left[\ln q_m\mid\bar q_m(M,z,\hat{\bm n})
+\right]$ represents the intrinsic cluster-to-cluster scatter. Since the intrinsic scatter is introduced only in $y_0$, while
+$\theta_{500}$ is fixed at $\bar{\theta}_{500}(M,z)$ in our model, the distribution
+of $q_m$ is also log-normal:
+\begin{equation}
+\begin{aligned}
+&P\left[
+\ln q_m
+\mid
+\bar q_m(M,z,\hat{\bm n})
+\right]
+\\
+&\quad =
+\frac{1}{\sqrt{2\pi}\sigma_{\ln Y}}\,
+e^{
+-\ln^2\left[
+q_m/\bar q_m(M,z,\hat{\bm n})
+\right]/
+\left(2\sigma_{\ln Y}^{2}\right)
+}.
+\end{aligned}
+\label{eq:intrinsic_qm_distribution}
+\end{equation}
+Substituting Equations \ref{eq:q_distribution_convolution} and \ref{eq:intrinsic_qm_distribution} into Equations \ref{eq:cluster_completeness} and \ref{eq:effective_completeness}, the survey selection function can be written as
+\begin{equation}
+\begin{aligned}
+&\chi\left(
+y_0,\theta_{500},\hat{\bm n}
+\right)
+\\
+&\quad =
+\int_{q_{\rm cat}}^{\infty}
+\mathrm{d}q\,
+P\left[
+q\mid
+q_m(y_0,\theta_{500},\hat{\bm n})
+\right].
+\end{aligned}
+\label{eq:survey_selection_observables}
+\end{equation}
+It represents the probability that a cluster with intrinsic observables is detected above the signal-to-noise threshold, $q_{\rm cat}$. Averaging this quantity over the intrinsic observable distribution at fixed mass and redshift then recovers the completeness function $\hat{\chi}(M,z,\hat{\bm n})$.
+
+
+% Following the GNFW pressure profile in Equation~\ref{eq:gnfw}, the central Compton-$y$ signal can be evaluated analytically as
+% \begin{equation}
+%     y_0(M_{500\mathrm{c}},z)
+%     = 2\,\frac{\sigma_T}{m_e c^2}\,
+%       C(M_{500\mathrm{c}},z)\,
+%       R_{500\mathrm{c}}(M_{500\mathrm{c}},z)\,
+%       \mathcal{I}_{\rm shape},
+%     \label{eq:y0_gnfw}
+% \end{equation}
+% where $\mathcal{I}_{\rm shape}$ is related to the shape of the pressure profile, given by
+% \begin{equation}
+%     \mathcal{I}_{\rm shape}
+%     \equiv \int_0^\infty
+%     (c_{500}x)^{-\gamma}
+%     \left[1+(c_{500}x)^\alpha\right]^{(\gamma-\beta)/\alpha}
+%     {\rm d}x.
+% \end{equation}
+
+
+
+
+\subsection{Survey selection function}
+The survey selection function \citep{Planck2015XXIV,ZubeldiaBolliet2024} is described by
+$P\left[q\mid q_m(y_0,\theta_{500},\hat{\bm n})\right]$, which gives the probability distribution of the observed signal-to-noise ratio $q$ for a cluster with intrinsic observables $y_0$ and $\theta_{500}$ at sky position $\hat{\bm n}$. We assume that the measured signal-to-noise ratio, $q$, follows a Gaussian distribution centered on $q_m$, such that $P(q\mid q_m)=(2\pi)^{-1/2}e^{-(q-q_m)^2/2}$. The survey selection function is then given by the error function,
+\begin{equation}
+\begin{aligned}
+\chi\left(
+y_0,\theta_{500},\hat{\bm n}
+\right)
+={}&
+\int_{q_{\rm cat}}^{\infty}
+\mathrm{d}q\,
+P\left[
+q\mid q_m(y_0,\theta_{500},\hat{\bm n})
+\right]
+\\
+={}&
+\frac{1}{2}
+\operatorname{erfc}\left[
+\frac{
+q_{\rm cat}
+-
+q_m(y_0,\theta_{500},\hat{\bm n})
+}
+{\sqrt{2}}
+\right].
+\end{aligned}
+\label{eq:survey_selection_function}
+\end{equation}
+
+Combining the log-normal intrinsic scatter model in Section \ref{subsec:obs-massrelations} and the error function survey selection function, the completeness function can be written as
+\begin{equation}
+\begin{aligned}
+\hat{\chi}(M,z,\hat{\bm n})
+={}&
+\frac{1}{2\sqrt{2\pi}}
+\int_{-\infty}^{\infty}
+\mathrm{d}u\,
+e^{-u^2/2}
+\\
+&\times
+\operatorname{erfc}\left[
+\frac{
+q_{\rm cat}
+-
+\bar q_m(M,z,\hat{\bm n})
+e^{\sigma_{\ln Y}u}
+}
+{\sqrt{2}}
+\right], 
+\end{aligned}
+\label{eq:completeness_standard_normal}
+\end{equation}
+where $u=\ln[q_m/\bar q_m]/\sigma_{\ln Y}$. 
+
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/fig1_joint_analysis_schematic_vertical.pdf}
+    \caption{\label{fig:schematic}
+    Schematic of the joint cluster number counts (CNC) and masked tSZ power-spectrum analysis for a Compton-$y$ map, adopting a cluster detection threshold of $q_{\mathrm{cat}}=5$. Detected clusters with $q\geq q_{\mathrm{cat}}$ are masked in the map, with the grey regions indicating the apodized cluster masks, while clusters below the threshold remain in the unresolved field. The masked map is used to measure the tSZ power spectrum (upper-right panel), whereas the detected cluster sample is used to construct number counts binned in redshift and signal-to-noise (lower-right panel).}
+\end{figure*}
+
+\section{Joint Analysis of Cluster Counts and the Masked tSZ Power Spectrum}
+\label{sec:joint_analysis}
+Having presented the theoretical ingredients, we now develop a self-consistent framework for combining the tSZ power spectrum and CNC within a single analysis. We decompose the Compton-$y$ map into resolved and unresolved components according to the signal-to-noise threshold $q_{\rm cat}$. Clusters detected with $q\geq q_{\rm cat}$ constitute the resolved population: they enter the cluster number count sample and are masked from the map. Clusters with $q<q_{\rm cat}$ form the unresolved population and remain in the map, contributing to the masked tSZ power spectrum. The two observables therefore probe complementary subsets of the halo populations. Figure~\ref{fig:schematic} illustrates this
+decomposition for a synthetic full-sky Compton-$y$ realization with
+$q_{\rm cat}=5$, together with the corresponding masked power spectrum and binned CNC in redshift and signal-to-noise \citep{Rotti_2021,OsatoTakada2021}.
+
+% Using the log-normal intrinsic scatter model and the error function survey selection function introduced in Section \ref{sec:modelling}, the completeness function can be written as
+% \begin{equation}
+% \begin{aligned}
+% \hat{\chi}(M,z,\hat{\bm n})
+% ={}&
+% \frac{1}{2\sqrt{2\pi}}
+% \int_{-\infty}^{\infty}
+% \mathrm{d}u\,
+% e^{-u^2/2}
+% \\
+% &\times
+% \operatorname{erfc}\left[
+% \frac{
+% q_{\rm cat}
+% -
+% \bar q_m(M,z,\hat{\bm n})
+% e^{\sigma_{\ln Y}u}
+% }
+% {\sqrt{2}}
+% \right], 
+% \end{aligned}
+% \label{eq:completeness_standard_normal}
+% \end{equation}
+% where $u=\ln[q_m/\bar q_m]/\sigma_{\ln Y}$. 
+
+\subsection{Cluster Number Counts}
+We bin the resolved clusters in redshift and signal-to-noise bins. The expected number of detected clusters in the redshift bin
+$[z_i,z_{i+1}]$ and signal-to-noise bin $[q_j,q_{j+1}]$ is given by
+\begin{equation}
+\begin{aligned}
+N_{ij}
+={}&
+\int_{z_i}^{z_{i+1}}
+\mathrm{d}z
+\int_{\Omega_{\rm mask}}
+\mathrm{d}\Omega\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+\\
+&\times
+\int_{M_{\rm min}}^{M_{\rm max}}
+\mathrm{d}M\,
+\frac{\mathrm{d}n_{\rm h}(M,z)}
+{\mathrm{d}M}
+\mathcal{P}_j(M,z,\hat{\bm n}),
+\end{aligned}
+\label{eq:joint_cluster_counts}
+\end{equation}
+where
+\begin{equation}
+\mathcal{P}_j(M,z,\hat{\bm n})
+=
+\int_{q_j}^{q_{j+1}}
+\mathrm{d}q\,
+P\left[
+q\mid\bar q_m(M,z,\hat{\bm n})
+\right],
+\label{eq:q_bin_probability}
+\end{equation}
+and the lower boundary of the bins satisfies $q_j\geq q_{\rm cat}$.
+
+\subsection{Masked tSZ Power Spectrum}
+The complementary unresolved population contributes to the masked tSZ
+power spectrum. We note that, in the presence of intrinsic scatter, the probability that a cluster remains below the detection threshold and the
+amplitude of its contribution to the tSZ power spectrum are correlated. The masked power spectrum therefore cannot be obtained by simply weighting the mean cluster profile by the unresolved
+fraction, $1-\hat{\chi}$. Although
+this correction is expected to be small for the intrinsic scatter adopted in our analysis, we include it for consistency.
+
+To account for this effect, we define the $n$th selection-weighted moment
+of the unresolved population as
+\begin{equation}
+\begin{aligned}
+W_n(M,z,\hat{\bm n})
+={}&
+\frac{1}{2\sqrt{2\pi}}
+\int_{-\infty}^{\infty}
+\mathrm{d}u\,
+e^{-u^2/2}
+e^{n\sigma_{\ln Y}u}
+\\
+&\times
+\operatorname{erfc}\left[
+\frac{
+\bar q_m(M,z,\hat{\bm n})
+e^{\sigma_{\ln Y}u}
+-q_{\rm cat}
+}
+{\sqrt{2}}
+\right].
+\end{aligned}
+\label{eq:unresolved_moment_weight}
+\end{equation}
+Here the factor $e^{n\sigma_{\ln Y}u}$ accounts for the change in the profile amplitude induced by the log-normal intrinsic scatter. Note that $1-W_0(M,z,\hat{\bm n})=\hat{\chi}(M,z,\hat{\bm n})$
+is the completeness function.
+
+The one-halo contribution to the masked power spectrum is then given by
+\begin{equation}
+\begin{aligned}
+C_{\ell}^{yy,\mathrm{1h,mask}}
+={}&
+\int_{0}^{z_{\rm max}}
+\mathrm{d}z\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+\int_{M_{\rm min}}^{M_{\rm max}}
+\mathrm{d}M\,
+\frac{\mathrm{d}n_{\rm h}(M,z)}
+{\mathrm{d}M}
+\\
+&\times
+\left|\bar{y}_{\ell}(M,z)\right|^2
+W_2(M,z).
+\end{aligned}
+\label{eq:masked_tsz_1h}
+\end{equation}
+The second-moment weight $W_2$ appears because the contribution of an individual halo to the one-halo power spectrum is proportional to
+$|y_\ell|^2$, as given by Equation \ref{eq:1haloavg}. Note that in the absence of masking, corresponding to
+$q_{\rm cat}\rightarrow\infty$, all halos remain in the Compton-$y$
+map and the moment weight reduces to
+$W_n\rightarrow e^{n^2\sigma_{\ln Y}^2/2}$.
+so that the one-halo power spectrum becomes
+\begin{equation}
+\begin{aligned}
+C_{\ell}^{yy,\mathrm{1h,full}}
+={}&
+e^{2\sigma_{\ln Y}^{2}}
+\int_{0}^{z_{\rm max}}
+\mathrm{d}z\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+\\
+&\times
+\int_{M_{\rm min}}^{M_{\rm max}}
+\mathrm{d}M\,
+\frac{\mathrm{d}n_{\rm h}(M,z)}
+{\mathrm{d}M}
+\left|\bar y_{\ell}(M,z)\right|^{2}.
+\end{aligned}
+\label{eq:full_tsz_1h_scatter}
+\end{equation}
+Thus, without masking, the log-normal intrinsic scatter produces a
+uniform boost of $e^{2\sigma_{\ln Y}^{2}}$ on the one-halo tSZ power spectrum across all multipoles. 
+
+Similarly, the two-halo contribution is
+\begin{equation}
+\begin{aligned}
+C_{\ell}^{yy,\mathrm{2h,mask}}
+={}&
+\int_{0}^{z_{\rm max}}
+\mathrm{d}z\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+P_{\rm lin}(k_\ell,z)
+\\
+&\times
+\Bigg[
+\int_{M_{\rm min}}^{M_{\rm max}}
+\mathrm{d}M\,
+\frac{\mathrm{d}n_{\rm h}(M,z)}
+{\mathrm{d}M}
+\\
+&\qquad\quad\times
+b_{\rm h}(M,z)\,
+\bar{y}_{\ell}(M,z)\,
+W_1(M,z)
+\Bigg]^2 .
+\end{aligned}
+\label{eq:masked_tsz_2h}
+\end{equation}
+The first-moment weight $W_1$ appears because each of the two distinct
+halos contributes one factor of $y_\ell$ to the two-halo correlation.
+The total masked tSZ power spectrum is then
+\begin{equation}
+C_{\ell}^{yy,\mathrm{mask}}
+=
+C_{\ell}^{yy,\mathrm{1h,mask}}
++
+C_{\ell}^{yy,\mathrm{2h,mask}}.
+\label{eq:masked_tsz_total}
+\end{equation}
+
+Figure~\ref{fig:tsz_ps_snr_masking} shows the shape dependence of the tSZ power spectrum in terms of $q_{\rm cat}$. Masking giant clusters suppresses the large-scale one-halo power most strongly, while small scales are less affected until the threshold becomes severe. Note that the two-halo term remains subdominant for the masked power spectrum on large scales.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figs/tsz_ps_snr_masking.pdf}
+    \caption{\label{fig:tsz_ps_snr_masking}%
+    Theoretical tSZ angular power spectra for successive cluster detection
+    thresholds $q_{\rm cat}$. Solid curves show the sum of the one- and
+    two-halo terms [Eqs.~\eqref{eq:masked_tsz_1h}--\eqref{eq:masked_tsz_total}],
+    and dashed curves show the two-halo contribution. All curves use the Arnaud
+    GNFW pressure profile and the selection-weighted moments $W_n$ of
+    Eq.~\eqref{eq:unresolved_moment_weight}, evaluated at the fiducial
+    cosmological and scaling-relation parameters.}
+\end{figure}
+
+\subsection{Masked Trispectrum and Covariance}
+\label{sec:masked_covariance}
+The covariance of the tSZ power spectrum includes both the disconnected Gaussian contribution and the connected four-point contribution described by the tSZ trispectrum. When massive clusters are retained in the Compton-$y$ map, the latter is dominated by the one-halo trispectrum \citep{Cooray2001,KomatsuSeljak2002,HillPajer2013,OsatoTakada2021}, given by
+\begin{equation}
+\begin{aligned}
+T_{\ell\ell'}^{yy,\mathrm{mask}}
+={}&
+\int \mathrm{d}z\,
+\frac{\mathrm{d}V}
+{\mathrm{d}z\,\mathrm{d}\Omega}
+\int \mathrm{d}\ln M\,
+\frac{\mathrm{d}n_{\rm h}}
+{\mathrm{d}\ln M}
+\\
+&\times
+\left|\bar y_{\ell}(M,z)\right|^2
+\left|\bar y_{\ell'}(M,z)\right|^2
+W_4(M,z).
+\end{aligned}
+\label{eq:masked_trispectrum}
+\end{equation}
+The fourth-moment weight $W_4$ appears because the same halo contributes two powers of the profile amplitude to each of the two bandpowers.
+
+For the bandpower covariance, we define the bin-averaged trispectrum as
+\begin{equation}
+\bar T_{bb'}^{yy,\mathrm{mask}}
+=
+\frac{1}
+{|\mathcal{B}_b|\,|\mathcal{B}_{b'}|}
+\sum_{\ell\in\mathcal{B}_b}
+\sum_{\ell'\in\mathcal{B}_{b'}}
+T_{\ell\ell'}^{yy,\mathrm{mask}},
+\label{eq:binned_masked_trispectrum}
+\end{equation}
+where $\mathcal{B}_b$ denotes the set of integer multipoles contained
+in bin $b$. Neglecting instrumental noise, the covariance of the masked bandpowers is then
+\begin{equation}
+\begin{aligned}
+M_{bb'}^{yy,\mathrm{mask}}
+={}&
+\delta_{bb'}
+\frac{
+2\left(
+C_b^{yy,\mathrm{mask}}
+\right)^2
+}
+{(2\ell_b+1)\,f_{\rm sky}\,\Delta\ell_b}
+\\
+&+
+\frac{
+\bar T_{bb'}^{yy,\mathrm{mask}}
+}
+{4\pi f_{\rm sky}} .
+\end{aligned}
+\label{eq:masked_bandpower_covariance}
+\end{equation}
+% We return to the relative size of the Gaussian and trispectrum
+% contributions, and to how masking reshapes them, in
+% Sec.~\ref{sec:kernels} after identifying which halos source each
+% observable.
+
+Figure~\ref{fig:noise_curve} shows the theoretical noise prediction computed from~\eqref{eq:masked_bandpower_covariance} for the total spectrum
+and for masked spectra with $q_{\rm cat}=5$, $10$, and $20$. To compute the noise we bin the power spectrum in logarithmic multipole bins of width $\Delta\ln\ell=0.4$, and we neglect the instrumental noise. For the total spectrum the connected one-halo trispectrum dominates at every
+multipole. Masking removes precisely the rare, massive,
+low-redshift clusters responsible for the trispectrum, and hence suppresses the trispectrum variance. Note that the Gaussian error depends on the width of the bin chosen. 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figs/noise_curve.pdf}
+    \caption{\label{fig:noise_curve}%
+    Predicted uncertainties of the tSZ bandpowers from Eq.~\eqref{eq:masked_bandpower_covariance}, neglecting instrumental noise and using logarithmic bins of width $\Delta\ln\ell=0.4$.
+    \textit{Upper panel:} total bandpower uncertainty, $10^{12}\ell(\ell+1)\sigma_\ell/(2\pi)$, together with its trispectrum and Gaussian contributions.
+    \textit{Lower panel:} ratio of the trispectrum to Gaussian contributions, $\sigma_\ell^{\rm T}/\sigma_\ell^{\rm G}$.
+    Black curves show the unmasked case, while blue, green, and red curves show masked cases with $q_{\rm cat}=5$, $10$, and $20$, respectively. Solid, dashed, and dotted lines denote the total, trispectrum, and Gaussian uncertainties.
+    Masking substantially suppresses the trispectrum contribution, particularly at low multipoles, while the uncertainties approach the unmasked case at high multipoles as the signal becomes increasingly dominated by unresolved lower-mass halos.}
+\end{figure}
+
+
+\section{Halo contributions and the impact of masking}
+\label{sec:kernels}
+The tSZ power spectrum and the CNC are sourced by halos with various mass and redshift. The total tSZ power spectrum is particularly sensitive to rare, massive, low-redshift clusters. Masking clusters detected above a signal-to-noise threshold suppresses this contribution and shifts the sensitivity of the masked power spectrum towards lower-mass and higher-redshift halos. The resolved clusters removed from the map contribute to the cluster number count sample which probes the high-mass population above the survey detection threshold.
+
+To explicitly compare which halos source each observable, we compute the
+normalized differential contribution of halos of mass $M$ and redshift $z$
+to each probe,
+\begin{equation}
+K_X(z,M)
+=
+\frac{1}{X}
+\frac{\partial^2 X}
+{\partial\ln z\,\partial\ln M},
+\label{eq:kernel2d}
+\end{equation}
+for $X\in\{C_\ell^{yy},\,C_\ell^{yy,\mathrm{mask}},\,N\}$, normalized such
+that $\int\mathrm{d}\ln z\,\mathrm{d}\ln M\,K_X=1$. For the tSZ power spectra we only consider the dominant one-halo term in both masked and unmasked case. Following Equation \ref{eq:masked_tsz_1h},
+\begin{equation}
+\frac{\partial^2 C_\ell^{yy}}
+{\partial\ln z\,\partial\ln M}
+=
+z\,
+\frac{\mathrm{d}V}{\mathrm{d}z\,\mathrm{d}\Omega}\,
+\frac{\mathrm{d}n_{\rm h}}{\mathrm{d}\ln M}\,
+\left|\bar y_\ell(M,z)\right|^2
+W(M,z),
+\label{eq:kernel2d_ps}
+\end{equation}
+with $W=e^{2\sigma_{\ln Y}^{2}}$ for the total unmasked tSZ power spectrum
+[cf.\ Eq.~\eqref{eq:full_tsz_1h_scatter}; a constant that cancels in
+the normalization of Eq.~\eqref{eq:kernel2d}] and $W=W_2$ for the
+masked power spectrum. For the CNC, the differential contribution to the halo abundance is given by
+\begin{equation}
+\frac{\partial^2 N}
+{\partial\ln z\,\partial\ln M}
+=
+z\,
+\frac{\mathrm{d}V}{\mathrm{d}z\,\mathrm{d}\Omega}\,
+\frac{\mathrm{d}n_{\rm h}}{\mathrm{d}\ln M}\,
+\hat{\chi}(M,z).
+\label{eq:kernel2d_cnc}
+\end{equation}
+The kernels are evaluated at the fiducial cosmology with the mean
+signal-to-noise ratio $\bar q_m(M,z)$ of Equation \ref{eq:mean_snr} computed
+using the sky-averaged \textit{Planck} MMF noise, a detection threshold
+$q_{\rm cat}=5$, and intrinsic scatter $\sigma_{\ln Y}=0.173$.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/kernels2d_per_ell.pdf}
+    \caption{\label{fig:kernels2d_ell}%
+    Normalized differential halo contribution $K_X(z,M)$
+    [Eq.~\eqref{eq:kernel2d}] to the tSZ power spectrum and CNC for $\ell=100$, $500$, $1000$, and $3000$. The upper and lower rows show
+    the halo population contribution total and $q_{\rm cat}=5$ masked spectra, respectively. Dashed curves
+    show contours of the mean signal-to-noise ratio
+    $\bar q_m(M,z)=q$ [Eq.~\eqref{eq:mean_snr}] for the sky-averaged
+    \textit{Planck} MMF noise. The red $q=q_{\rm cat}=5$ contour marks the
+    detection boundary for a \textit{Planck}-like survey; the upper row additionally shows $q=1$, $10$, and
+    $20$ in orange, magenta, and cyan. Solid green contours enclose $68\%$
+    and $95\%$ of the CNC kernel. Increasing $\ell$ shifts the total-spectrum
+    contribution toward lower masses and higher redshifts, whereas masking
+    confines the contribution below the detection boundary and yields a
+    nearly $\ell$-independent mean mass.}
+\end{figure*}
+
+Figure~\ref{fig:kernels2d_ell} shows the kernels of the total (top row)
+and masked (bottom row) power spectra at $\ell=100$, $500$, $1000$, and
+$3000$. For comparison, the CNC kernel is overlaid in each panel as solid green contours enclosing $68\%$ and $95\%$ of the resolved-cluster population satisfying $q \geq q_{\rm cat}=5$. We also plot the contours of the mean signal-to-noise ratios, $\bar q_m(M,z)$, which represent the detection boundary that splits the halo population between the two probes, with halos above it entering the resolved cluster catalogue and halos below it remaining unresolved in the map. It is noticeable that, at high redshift, the selection contours bend towards lower masses. This is because $\bar q_m(M,z)$ is the ratio between the signal and the filter noise, and the Compton-$y$ signal grows as $\bar y_0\propto E^2(z)$ which does not dim with distance. Although the filter noise initially increases as the cluster angular size decreases, this growth weakens at high redshift because $D_A(z)$ reaches its maximum at $z\simeq1.6$ while $R_{500\mathrm{c}}$ shrinks only mildly. The angular size therefore evolves more slowly.  Because of the intrinsic scatter, the CNC and masked tSZ power-spectrum kernels extend slightly below and above, respectively, the mean selection boundary, $\bar q_m(M,z)=q_{\rm cat}$. This reflects that clusters near the detection threshold scatter above the detection limit and enter the catalogue, while clusters that scatter below it remains unresolved in the map.
+
+On large angular scales, the tSZ power spectrum is dominated by rare, massive halos. In the Planck-relevant regime, these are largely the same clusters that enter the resolved cluster catalogue, so the total tSZ power spectrum and the cluster number counts probe strongly overlapping halo populations. This overlap is evident in Figure~\ref{fig:kernels2d_ell}, where the CNC contribution contours substantially overlap with the peak of the total tSZ power spectrum kernel at $\ell \sim 1000$. Masking the detected clusters suppresses this contribution and shifts the power-spectrum sensitivity towards lower-mass, unresolved halos, thereby reducing the overlap with the CNC sample and making the two observables more complementary. 
+
+We also investigate the mean mass and redshift contribution of each probe. The mean mass and redshift dependence is given by
+\begin{equation}
+\begin{aligned}
+\left\langle M_{500\mathrm{c}}\right\rangle_X(\ell)
+&=
+\int \mathrm{d}\ln z\,\mathrm{d}\ln M\,
+M_{500\mathrm{c}}\,K_X(z,M;\ell),
+\\
+\left\langle z\right\rangle_X(\ell)
+&=
+\int \mathrm{d}\ln z\,\mathrm{d}\ln M\,
+z\,K_X(z,M;\ell).
+\end{aligned}
+\label{eq:mean_mass_redshift}
+\end{equation}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figs/mean_mass_ell.pdf}
+    \caption{\label{fig:mean_mass_ell}%
+    Mean physical halo mass contributing to the tSZ power spectrum
+    [Eq.~\eqref{eq:mean_mass_redshift}] as a function of multipole. Black
+    curves show the total spectrum; red, magenta, and cyan curves show
+    masked spectra with $q_{\rm cat}=5$, $10$, and $20$, respectively.
+    Solid and dashed curves denote the one- and two-halo terms, with the
+    masked one- and two-halo contributions weighted by $W_2$ and $W_1$.
+    Dotted horizontal lines show the mean masses of the corresponding CNC
+    samples ($q>q_{\rm cat}$) in physical units of $M_\odot$. Masking limits
+    the mean mass contributing to the power spectrum almost independently
+    of $\ell$, while CNC probe the complementary higher-mass population.}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figs/mean_redshift_ell.pdf}
+    \caption{\label{fig:mean_redshift_ell}%
+    Mean halo redshift contributing to the tSZ power spectrum
+    [Eq.~\eqref{eq:mean_mass_redshift}] as a function of multipole. Black
+    curves show the total spectrum; red, magenta, and cyan curves show
+    masked spectra with $q_{\rm cat}=5$, $10$, and $20$, respectively.
+    Solid and dashed curves denote the one- and two-halo terms, with the
+    masked one- and two-halo contributions weighted by $W_2$ and $W_1$.
+    Dotted horizontal lines show the mean redshifts of the corresponding
+    CNC samples ($q>q_{\rm cat}$). Masking shifts the power-spectrum weight
+    toward higher-redshift halos than those dominating the resolved counts.}
+\end{figure}
+
+Figures~\ref{fig:mean_mass_ell} and \ref{fig:mean_redshift_ell} show the mean mass and redshift contribution of the tSZ power spectrum as a function of multipole, as well as the contribution from the CNC sample. At $\ell=500$, the total power spectrum receives most of its contribution from $\langle M_{500\mathrm{c}}\rangle\simeq 7.0\times10^{14}\,M_\odot$ and
+$\langle z\rangle\simeq 0.22$. This is nearly the same population that dominates the cluster counts, for which
+$\langle M_{500\mathrm{c}}\rangle\simeq 6.1\times10^{14}\,M_\odot$ and
+$\langle z\rangle\simeq 0.23$. Masking removes the massive, low-redshift population and shifts the contribution to $\langle M_{500\mathrm{c}}\rangle\simeq 3.1\times10^{14}\,M_\odot$ and
+$\langle z\rangle\simeq 0.35$ for $q_{\rm cat}= 5$. Hence, masking separates the two probes into complementary halo populations, with the cluster counts tracing massive, nearby halos and the masked tSZ power spectrum probing lower-mass halos at higher redshift.
+
+% This mass separation has a direct consequence for the sampling variance
+% of the power spectrum.
+% Figure~\ref{fig:noise_curve} shows the diagonal of the bandpower
+% covariance~\eqref{eq:masked_bandpower_covariance} for the total spectrum
+% and for masked spectra with $q_{\rm cat}=5$, $10$, and $20$.
+% For illustration we bin the errors in logarithmic multipole bins of
+% width $\Delta\ln\ell=0.4$, so that the number of modes in each bin is
+% $N\simeq(2\ell+1)\Delta\ell\,f_{\rm sky}$ with
+% $\Delta\ell=\ell\,\Delta\ln\ell$, and we neglect instrumental noise.
+% The top panel shows
+% $10^{12}\,\ell(\ell+1)\,\sigma_\ell/2\pi$, with the Gaussian and
+% trispectrum pieces plotted separately; the bottom panel shows their
+% ratio $\sigma_\ell^{\rm T}/\sigma_\ell^{\rm G}$.
+% Because $C_\ell^{yy}\propto\ell^{-2}$ on large scales, the binned
+% Gaussian cosmic error is nearly constant at low $\ell$.
+% For the total spectrum the connected one-halo trispectrum dominates at
+% every multipole shown, exceeding the Gaussian term by more than an
+% order of magnitude around the peak of the non-Gaussian variance---as
+% expected once the kernels of
+% Fig.~\ref{fig:kernels2d_ell} and the mean masses of
+% Fig.~\ref{fig:mean_mass_ell} are recognized to be dominated by rare,
+% nearby massive clusters.
+% Masking removes precisely those objects and therefore suppresses the
+% non-Gaussian error preferentially at low multipoles, where they
+% contribute most of the large-scale power: the lower the catalogue
+% threshold, the stronger the suppression, and the Gaussian term can
+% dominate until higher $\ell$.
+% At $\ell\gtrsim10^{3}$ the masked error curves converge toward the
+% total as the remaining unresolved population recovers the bulk of the
+% small-scale signal.
+% Progressive cluster masking thus converts a trispectrum-dominated
+% covariance into one that is far closer to Gaussian on the largest
+% scales, which is the regime in which the joint power-spectrum plus
+% number-count analysis is most complementary.
+
+\section{Methods}
+\label{sec:methods}
+%==============================================================================
+In this section, we describe the methods to test this joint analysis framework. We proceed in two stages. First, we generate synthetic \textit{Planck}-like data using the same halo-model ingredients as the theoretical framework. This controlled setting allows us to validate the analysis pipeline and assess its performance under internally consistent modelling assumptions. We then apply the same analysis to the FLAMINGO hydrodynamical simulations to test the framework when the tSZ signal is determined by simulated intracluster gas physics rather than by the parametric halo model.
+
+\subsection{Synthetic data generation}
+\label{subsec:syntheticdata}
+We first test the joint analysis pipeline using synthetic data generated at a fixed set of cosmological and cluster-scaling parameters.
+The fiducial values used to generate the mocks are
+$\Omega_{\mathrm{m}}=0.310$,
+$\sigma_8=0.780$
+(so that $S_8\equiv\sigma_8\sqrt{\Omega_{\mathrm{m}}/0.3}=0.792$),
+$H_0=67.66$,
+$n_{\mathrm{s}}=0.9665$,
+$\omega_{\mathrm{b}}=0.02242$,
+hydrostatic mass bias $1-b=0.709$ (equivalently $B=1.41$),
+$A_{\mathrm{SZ}}=-4.237$,
+$\alpha_{\mathrm{SZ}}=1.12$,
+and $\sigma_{\ln Y}=0.173$.
+Mock halo catalogues are produced using the catalogue generator implemented in the publicly available \texttt{cosmocnc} package \citep{ZubeldiaBolliet2024}. At a given point in parameter space, mock cluster catalogues are generated by Poisson sampling of halo masses and redshifts from the HMF of \citet{Tinker:2008ff}. The HMF is evaluated with \texttt{hmfast}\footnote{\url{https://github.com/hmfast/hmfast/tree/main}}, using the matter power spectrum provided by the \texttt{cosmopower} emulator \citep{SpurioMancini2022}. The mass and redshift ranges of the halos are chosen to be \(10^{14}\,M_\odot \leq M_{500\mathrm{c}} \leq 10^{16}\,M_\odot\) and \(0.005\leq z\leq3\). Each halo is assigned a position drawn uniformly over the sky, such that halo clustering is neglected in the synthetic realizations. Then, for each cluster, the scaling relations of the mass observables are applied according to Equations \ref{eq:y0_scaling_relation} and \ref{eq:theta500_scaling_relation}. Intrinsic scatter in the tSZ signal and measurement noise are then applied successively to obtain the observed signal-to-noise ratio, $q_{\rm obs}$. Clusters satisfying $q_{\rm obs}\ge q_{\rm cat}$ are retained as the CNC sample and binned in redshift and signal-to-noise. We adopt a threshold of $q_{\rm cat}=5$ and use $10$ redshift bins spanning $0.005\le z\le 1$ together with $5$ signal-to-noise bins spanning $q_{\rm cat}\le q_{\rm obs}\le 40$. 
+% The same $(z,q)$ bin edges are used when computing the expected counts in the likelihood, so that the synthetic catalogue data vector and the model prediction share a common definition.
+
+Having generated the mock catalogue and assigned the cluster observables, we next construct the corresponding total Compton-$y$ maps. The maps are generated on a HEALPix grid with resolution $N_{\rm side}=1024$ \citep{Gorski2005}, using the \texttt{JXPaint}\footnote{\url{https://github.com/licongxu/JXPaint}} package. Each halo is assigned the A10 pressure profile shape and convolved with a Gaussian beam with $\theta_{\rm FWHM}= 10$ arcmin, with the amplitude of the pressure profile adjusted to reproduce the true value of $y_0$ obtained after intrinsic scatter is applied. The beam-convolved profile is painted within a finite angular radius with $\theta_{\rm max}=\max\!\left(4\theta_{500},\,2\theta_{\rm FWHM}\right)$, where $\theta_{500}=R_{500\mathrm{c}}/D_{\rm A}(z)$. This choice of truncation radius preserves the signal of resolved, extended clusters while ensuring that compact clusters are sampled over at least the angular scale of the beam. Since the pressure profile contributes negligibly at sufficiently large radii, the truncation has little effect on the total signal while reducing the computational cost of map generation. When residual foreground contamination is included, Gaussian random-field realizations of the CIB, infrared point-source, and radio-source components are generated from their angular power-spectrum templates and added to each painted Compton-$y$ signal map \citep{Planck2015XXII}. Note that this simplified assumption reproduces the assumed foreground residual power spectra but neglects their intrinsic non-Gaussianity and any correlations between components.
+
+From these maps, we measure both the full-sky and masked tSZ power spectra. We adopt the multipole binning scheme used in the \textit{Planck} 2015 analysis, defining the bandpowers at the 18 effective multipoles, $\ell_{\rm eff}$, listed in Ref.~\citep{Planck2015XXII}. To compute the masked power spectrum, clusters with $q_{\rm obs}\ge q_{\rm cat}$ are masked from the map with circular holes of the same angular radius $\theta_{\rm max}$ used in the painting step, with a $0.25^\circ$ cosine taper apodization around the boundary of each hole. We use the MASTER pseudo-$C_\ell$ algorithm \citep{Hivon2002} as implemented in \texttt{NaMaster} \citep{Alonso2019} to compute the masked power spectrum. Within each bin, we apply uniform weights to $D_\ell$ when averaging over multipoles with the effective multipoles at the centers of each multipole bin. We validate the power spectra computed from synthetic maps against the corresponding halo-model predictions in Appendix~\ref{app:synthetic_validation}, and the power spectrum distribution from synthetic maps is consistent with theoretical predictions.
+
+\subsection{Application to FLAMINGO simulations}
+\label{sec:methods_flamingo}
+After demonstrating the joint CNC and masked power spectrum pipeline on synthetic data generated using the halo model, we next apply the same pipeline to maps generated from hydrodynamical simulations, which provide a more realistic description of cluster thermodynamics, baryonic feedback, and departures from the idealized halo model. For this purpose, we use the FLAMINGO suite of cosmological hydrodynamical simulations \citep{Schaye2023,Kugel2023}. Here, we provide a brief summary about the FLAMINGO simulations, and we refer the readers to \citet{Schaye2023} and \citet{Kugel2023} for more detailed descriptions. 
+
+FLAMINGO is a large suite of hydrodynamical cosmological simulations covering large cosmic volumes. The simulations are performed with the open-source cosmology, gravity, hydrodynamics, and galaxy formation code \texttt{SWIFT} using the SPHENIX smoothed-particle hydrodynamics (SPH) scheme \citep{Schaller2024,Borrow2022}. The simulations are initialized using the modified version of \textsc{monofonIC} \citep{Hahn2021}, and simulations include neutrino particles using the $\delta f$ method \citep{Elbers2021}. An important feature of FLAMINGO simulations is the machine learning-assisted calibration of stellar and AGN feedback to the observed $z=0$ galaxy stellar mass function (SMF) and $z=0.1-0.3$ cluster gas fractions \citep{Kugel2023}. 
+
+In this work, our main analysis uses the intermediate-resolution L1\_m9 simulations, with an initial mean baryonic particle mass $m_g=1.0 \times10^9 M_\odot$ and mean CDM particle mass $m_{\mathrm{CDM}}=5.65\times10^{9}\,M_\odot$ in a $(1\,\mathrm{cGpc})^3$ volume. These simulations use $N_{\mathrm{b}}=N_{\mathrm{CDM}}=1800^{3}$ gas and dark matter particles, and $N_\nu=1000^{3}$ neutrino particles. FLAMINGO also provides the L2p8\_m9 simulations, which adopt the same mass resolution, fiducial cosmology, and calibrated feedback model as L1\_m9, but cover a larger (2.8 cGpc)$^3$ volume and provide eight lightcones. \citet{McCarthy:2023ism} showed that the predicted tSZ power spectrum is generally robust to this increase in simulation volume, although the 1 cGpc boxes miss a small amount of power owing to incomplete sampling of rare, massive clusters, while lightcone-to-lightcone variance remains significant at $\ell\lesssim300$. We therefore use L1\_m9 for the main analysis and the controlled comparison of astrophysical variations. We use the fiducial FLAMINGO cosmology (D3A) which adopts parameter values from the
+Dark Energy Survey Year~3 \citep{Abbott2022} $3\times2$pt plus external constraints
+\citep{Schaye2023}:
+$\Omega_{\mathrm{m}}=0.306$, $\Omega_{\mathrm{b}}=0.0486$,
+$\sigma_8=0.807$, $h=0.681$, $n_s=0.967$, and $\sum m_\nu=0.06\,\mathrm{eV}$. We also include the LS8 model which has a lower amplitude of the power spectrum, $S_8=0.766$, to investigate the cosmological variations of the signals. In addition to the fiducial D3A model, we also analyze a set of calibrated astrophysics variations at this resolution from the FLAMINGO suite. These include the \(f_{\rm gas}\pm N\sigma\) series, in which the cluster gas fractions used for calibration are shifted up or down by $N$ standard deviations relative to the observational constraints while the SMF is held fixed; the \(M_*-\sigma\) model, in which the observed stellar masses are decreased by the expected systematic uncertainty of \(0.14\,\mathrm{dex}\) prior to calibration; and the Jet models that replace the isotropic thermal AGN feedback with kinetic, collimated jets.
+
+% Halo catalogues are computed using the Spherical Overdensity and
+% Aperture Processor (SOAP), which uses the subhalo centers and gravitationally bound particle memberships determined by HBT-HERONS. SOAP provides halo properties under several commonly used definitions, including spherical-overdensity measurements, inclusive and exclusive spherical apertures, and projected apertures \citep{Kugel2024}. In this work, select all halos with $M_{\rm 500c}>10^{13}M_\odot$ from the halo catalogues. For the fiducial L1\_m9 simulations, there are 24,414,876 halos with $M_{\rm 500c}>10^{13}M_\odot$, 357,294 halos with $M_{\rm 500c}>10^{14}M_\odot$, and 160 halos with $M_{\rm 500c}>10^{15}M_\odot$ across $0\leq z \leq 3$.
+
+% Of particular interest for this work are the lightcone products of FLAMINGO simulations described in Appendix~A of \citet{Schaye2023} and Section 3.3 of \citet{Helly2026}. To build the all-sky HEALPix maps, the observer’s past lightcone is split into a set of concentric spherical shells in comoving distance. Whenever a simulation particle crosses the past lightcone of an observer placed within the periodic simulation volume, its contribution is assigned to the corresponding radial shell and accumulated in the appropriate HEALPix pixel. The resulting shell maps can then be combined along the line of sight to produce integrated full-sky maps. Each L1 box hosts two observer positions. 
+
+% \LX{Need rewrite the structure below. Include a discussion on the effect of rotation and periodic universe.}
+% In this work, we use the SPH-smoothed thermal Sunyaev--Zel'dovich maps provided as Compton-$y$ shells at $N_{\mathrm{side}}=4096$. Summing these shells yields a full-sky Compton-$y$ map containing the contribution from ionized gas intersecting the observer's past lightcone. Because the widths of the lightcone shells can exceed the simulation box size, some lines of sight may pass through multiple periodic copies of the same structures, introducing artificial correlations into the maps. We therefore use the rotated lightcone products, for which the shells are randomly rotated whenever the lightcone diameter exceeds a multiple of the box size. Figure~\ref{fig:flamingo_shells} illustrates this construction for the fiducial L1\_m9 lightcone: representative redshift shells of the Compton-$y$ field are shown alongside the integrated total map spanning $0\le z\le 3$.
+
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=\textwidth]{figs/flamingo_shells_L1_m9.pdf}
+%     \caption{\label{fig:flamingo_shells}%
+%     Full-sky Compton-$y$ maps from observer~0 of the fiducial FLAMINGO
+%     L1\_m9 lightcone ($N_{\mathrm{side}}=4096$), shown in Mollweide
+%     projection with a common logarithmic colour scale. Four representative
+%     redshift shells are displayed: $z=0$--$0.1$, $0.1$--$0.25$,
+%     $0.35$--$0.5$, and $1.25$--$1.5$; $+\cdots$ indicates omitted
+%     intermediate shells. The lower-right panel shows the integrated map over
+%     $0\leq z\leq3$. Nearby shells are dominated by a small number of bright
+%     clusters, whereas higher-redshift shells form a more diffuse background.}
+% \end{figure*}
+
+% Having assembled the lightcone halo catalogues and Compton-$y$ maps, we next assign a signal-to-noise ratio to each halo for cluster masking. We measure the cylindrical Compton-$y$ parameter, $Y_{500}^{\rm cyl}$, empirically on the map at the known sky position of each catalogue halo. We integrate the signal within a circular aperture of this radius of $\theta_{500}$. The MMF noise $\sigma_{Y_{500}}(\theta_{500})$ is derived from the same sky-averaged \textit{Planck}-like MMF noise curve used in the synthetic-data analysis. The empirical significance is then $q=Y_{500}^{\rm cyl}/\sigma_{Y_{500}}(\theta_{500})$. This procedure nevertheless neglects uncertainties associated with cluster finding procedure, including variations in pressure-profile shape, and MMF-related selection and measurement systematics. 
+
+% The full-sky and masked tSZ power spectra are measured from the FLAMINGO Compton-$y$ maps with the same masking geometry, apodization, MASTER/\texttt{NaMaster} estimation, and multipole binning as in Sec.~\ref{subsec:syntheticdata}. We test the convergence of the adopted masking radius in Appendix~\ref{sec:flamingo_masking_radius}. For $q_{\rm map}>5$, increasing the radius from $4\theta_{500}$ to $8\theta_{500}$ changes the bandpowers by less than approximately $4\%$, $1.5\%$, and $0.5\%$ at $\ell\simeq100$, $500$, and $2500$, respectively, showing that the adopted masking radius is sufficient. As a consistency test, we use the eight L2p8\_m9 lightcones to compare the empirical variance of the CNC and tSZ bandpowers with the corresponding analytic expectations in Appendix~\ref{sec:l2p8_lightcone_variance}. The CNC scatter is within $25\%$ of the Poisson expectation in eight of the ten redshift bins, but exceeds it by factors of $2.3$ and $1.4$ in the two lowest-redshift bins. Masking giant clusters suppresses the scatter of tSZ bandpowers as expected, but the agreement with the analytic covariance is only qualitative: over the five lowest multipole bins ($10\leq\ell_{\rm eff}\leq30.5$), the ratio of the empirical to predicted standard deviation is $0.05$--$0.08$ for the full-sky spectrum and $2.2$--$4.8$ for the masked spectrum. This discrepancy may indicate limitations in the theoretical covariance model, although it could also reflect the sampling uncertainty associated with estimating the variance from only eight lightcones.
+
+\subsubsection{Multifrequency FLAMINGO mock skies}
+For the observational analysis, we use the multicomponent full-sky mock maps constructed from the FLAMINGO simulations by \citet{Yang:2025per}. These products are based on the FLAMINGO lightcone outputs and provide spatially self-consistent realizations of several secondary CMB and extragalactic foreground signals. We briefly summarize here the construction of the components most relevant to our analysis and refer to \citet{Yang:2025per} for a complete description.
+
+The FLAMINGO lightcone maps are constructed by dividing the past lightcone of each observer into concentric spherical shells in comoving distance. Whenever a simulation particle crosses the past lightcone of an observer placed within the periodic simulation volume, its contribution is assigned to the corresponding radial shell and accumulated in the appropriate HEALPix pixel. The resulting shell maps can then be combined along the line of sight to produce integrated full-sky maps. Because the widths of the lightcone shells can exceed the simulation box size, some lines of sight may pass through multiple periodic copies of the same structures, introducing artificial correlations into the maps. We therefore use the rotated lightcone products, for which the shells are randomly rotated whenever the lightcone diameter exceeds a multiple of the box size. 
+
+% \LX{Discuss the impact of periodic universe.}
+
+The tSZ component is constructed directly from the thermodynamic properties of the gas particles in the FLAMINGO lightcones. For a gas particle intersecting the observer lightcone, its contribution to the Compton-\(y\) map is given by
+\begin{equation}
+\Delta y
+=
+\frac{\sigma_{\rm T} k_{\rm B}}{m_e c^2}
+\frac{m_g n_e T_e}
+{\Omega_{\rm pix} d_A^2 \rho},
+\label{eq:flamingo_particle_y}
+\end{equation}
+where $m_g$, $\rho$, $n_e$, and $T_e$ are the mass, density, electron number density, and temperature of the gas particle. $d_A$ is the angular-diameter distance to the observer, and $\Omega_{\rm pix}$ is the pixel solid angle. The particle contributions are distributed over the sky using the SPH smoothing kernel and accumulated to construct the Compton-$y$ map.
+
+The CIB maps are constructed from the star formation rate (SFR) lightcone maps predicted by FLAMINGO, since the CIB is strongly correlated with the distribution of star-forming galaxies. Following \citet{Yang:2025per},
+the simulated SFR is converted to a bolometric infrared luminosity using
+\begin{equation}
+\frac{L_{\rm bol,IR}}{10^{10}L_\odot}
+=
+\frac{\mathrm{SFR}}
+{1\,M_\odot\,\mathrm{yr}^{-1}}.
+\label{eq:flamingo_cib_sfr}
+\end{equation}
+The bolometric infrared luminosity is converted to the luminosity at a given frequency by modelling the spectral energy distribution (SED) as a modified blackbody,
+\begin{equation}
+\Phi(\nu,z)
+\propto
+\frac{\nu^{\beta_d+3}}
+{\exp\left[
+h\nu/(k_{\rm B}T_{\rm dust})
+\right]-1},
+\label{eq:flamingo_cib_sed}
+\end{equation}
+where $\beta_d$ is the dust emissivity index and the dust temperature
+evolves with redshift as $T_{\rm dust}=T_0(1+z)^\alpha$. The luminosity at a given rest-frame frequency is then obtained by
+normalizing the SED to the bolometric infrared luminosity,
+\begin{equation}
+L_{\nu,{\rm IR}}
+=
+L_{\rm bol,IR}
+\frac{\Phi(\nu,T_{\rm dust})}
+{\int \mathrm{d}\nu\,\Phi(\nu,T_{\rm dust})}.
+\label{eq:flamingo_cib_lnu}
+\end{equation}
+The corresponding observed flux density is then
+\begin{equation}
+S_{\nu,{\rm IR}}
+=
+\frac{
+L_{\nu(1+z),{\rm IR}}
+}{
+4\pi \chi^2(z)(1+z)
+},
+\label{eq:flamingo_cib_flux}
+\end{equation}
+where $\chi(z)$ is the radial comoving distance, and the luminosity is
+evaluated at the corresponding rest-frame frequency $\nu(1+z)$. The parameters
+$\{\beta_d,T_0,\alpha\}$ are calibrated by \citet{Yang:2025per} against
+the Planck CIB auto-power spectra at 353, 545, and 857 GHz.
+
+\begin{table}[t]
+\centering
+\caption{Planck HFI beam FWHM and white-noise levels adopted for the
+multifrequency mock maps. The final column gives the corresponding flat
+white-noise power spectrum amplitude.}
+\label{tab:planck_mock_properties}
+\begin{ruledtabular}
+\begin{tabular}{cccc}
+$\nu$ [GHz]
+& FWHM [arcmin]
+& $\Delta_T$ [$\mu{\rm K\,arcmin}$]
+& $N_\ell$ [$\mu{\rm K}^2$] \\
+100 & 9.66 & 77.4    & $5.07\times10^{-4}$ \\
+143 & 7.22 & 33.0    & $9.21\times10^{-5}$ \\
+217 & 4.90 & 46.8    & $1.85\times10^{-4}$ \\
+353 & 4.92 & 154.0   & $2.01\times10^{-3}$ \\
+545 & 4.67 & 806.7   & $5.51\times10^{-2}$ \\
+857 & 4.22 & 19115.0 & $3.09\times10^{1}$ \\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
+
+The primary CMB is generated as a Gaussian random field from a theoretical CMB temperature power spectrum computed at the corresponding cosmological parameter of each FLAMINGO map. The same CMB realization is used across all frequency channels in thermodynamic CMB temperature units. We add independent homogeneous white instrumental noise to the six frequency channels corresponding to the Planck HFI bands, adopting the channel-dependent beam FWHM and noise levels summarized in Table~\ref{tab:planck_mock_properties}. The multifrequency mock map at frequency $\nu$ can therefore be written as
+\begin{equation}
+d_{\nu}(\hat{\bm n})
+=
+B_{\nu}\star
+\left[
+T_{\rm CMB}(\hat{\bm n})
++
+T_{{\rm tSZ},\nu}(\hat{\bm n})
++
+T_{{\rm CIB},\nu}(\hat{\bm n})
+\right]
++
+n_{\nu}(\hat{\bm n}),
+\label{eq:multifrequency_mock_map}
+\end{equation}
+where $B_{\nu}$ denotes convolution with the Gaussian instrumental beam, $T_{\rm CMB}$ is the primary CMB realization, $T_{{\rm tSZ},\nu}$ and $T_{{\rm CIB},\nu}$ are the frequency-dependent tSZ and CIB contributions, respectively, and $n_{\nu}$ is the instrumental-noise realization. 
+
+\subsubsection{Cluster detection and power spectrum reconstruction}
+
+We extract the cluster catalogue and the tSZ power spectrum directly from the multifrequency mock skies using two complementary pipelines. Resolved clusters are identified using the MMF approach, while the Compton-$y$ field is reconstructed using the HILC approach. Both analyses use the same six \textit{Planck} HFI frequency channels at 100, 143, 217, 353, 545, and 857 GHz.
+
+Following the \texttt{SZiFi} cluster-finding pipeline, we tessellate the sky into 768 non-overlapping selection tiles defined by a much coarser HEALPix pixelization with $N_{\rm side}=8$. Each selection tile covers $53.7\,{\rm deg}^2$, corresponding to a characteristic angular extent of approximately $7.3^\circ$. For the actual MMF calculation, a $14.8^\circ\times14.8^\circ$ square cutout of each frequency map is constructed around the centre of each selection tile and projected onto a $1024\times1024$ flat-sky grid, corresponding to a pixel size of $0.867\,\mathrm{arcmin}$. The cutouts are deliberately larger than the selection tiles so that each HEALPix tile is fully contained within its corresponding flat-sky field.
+
+Within each field, we filter the frequency maps using the non-relativistic tSZ spectral dependence and the projected pressure profile of \citet{Arnaud2010}, convolved with the \textit{Planck} instrumental beams. To optimize the detection of clusters of different angular size, the MMF is evaluated at 25 logarithmically spaced trial values of $\theta_{500}$ between $0.5$ and $32\,\mathrm{arcmin}$, using Fourier modes in the range $100 \leq \ell \leq 2500$. For each trial scale, we construct maps of $\hat{y}_0$ and $q$. The set of signal-to-noise maps defines a three-dimensional field, $q(\boldsymbol{x};\theta_{500})$, spanning the two sky coordinates and the filter angular scale. Cluster candidates are identified as local peaks of this three-dimensional signal-to-noise field. For each candidate, we retain the position and filter scale that give the highest signal-to-noise ratio. We denote this optimized detection significance by $q_{\rm opt} = \hat{y}_0/\sigma_{\hat{y}_0}$, where both the recovered central Compton-$y$ amplitude and its uncertainty are evaluated at the selected position and filter scale.
+
+For each field, \texttt{SZiFi} estimates the cross-channel noise covariance matrix from the multifrequency maps. Note that if the resolved clusters themselves are included when estimating the noise covariance matrix, the MMF noise can be overestimated and the recovered signal-to-noise ratio suppressed. We therefore use the iterative MMF (iMMF) procedure of \citet{Zubeldia_2023}. After an initial cluster search, detections with $q>4$ are masked within $3\theta_{500}$, the noise covariance is re-estimated from the masked maps, and the matched-filter search is repeated using the updated noise covariance. Detections arising from overlapping tiles are subsequently merged, and the final resolved cluster sample is defined by $q_{\rm opt}\geq q_{\rm cat}=5$.
+
+The spatial correlation between the CIB and the tSZ signal can bias the signal-to-noise ratio and the CNC. To mitigate this effect, we adopt the spectrally constrained iterative multifrequency matched filter (sciMMF) introduced in \citet{2023MNRAS.522.5123Z}. The sciMMF extends the standard iMMF by imposing an additional spectral constraint that deprojects a specified CIB SED. This suppresses contamination from the cluster-correlated CIB, at the cost of an increase in the MMF noise. We use the default \texttt{SZiFi}/\textit{Planck} CIB model to deproject the CIB. Unless otherwise stated, CNC and the cluster mask use this sciMMF sample.
+
+Independently, we reconstruct the Compton-$y$ map from the same multifrequency maps using HILC. We perform the reconstruction for both the total and cluster-masked skies. For the latter, clusters detected by sciMMF with $q_{\rm opt}\geq q_{\rm cat}$ are masked in each frequency map with a masking radius of $\max(4\theta_{500},2\theta_{\rm FWHM})$, and the HILC weights are recomputed from the masked multifrequency maps. To avoid instrumental-noise bias in the reconstructed power spectrum, we construct two sets of multifrequency maps containing the same sky signal but independent noise realizations. The HILC is then performed independently for the two sets of maps for both the total and masked cases, and we estimate the corresponding tSZ power spectra from the cross-spectrum of the two reconstructed Compton-$y$ maps.
+
+\subsection{Likelihood Analysis}
+\label{sec:methods_likelihood}
+We analyze the cluster catalogue and the tSZ bandpowers with separate likelihoods. Cosmological parameters, and the tSZ scaling parameters $(A_{\mathrm{SZ}},\alpha_{\mathrm{SZ}},\sigma_{\ln Y})$ are shared between the two probes, while the hydrostatic mass bias is held fixed at $1-b=0.709$ (Table \ref{tab:priors}). Parameter inference is performed with Markov-chain Monte Carlo (MCMC) sampling using \texttt{Cobaya} \citep{TorradoLewis2021}. Here we introduce the likelihood we used for each probe and the priors adopted in the synthetic-data inference.
+
+\paragraph{Parameters and priors.}
+The free parameters and their priors, listed in Table~\ref{tab:priors}, are the same for all five probe combinations; residual-foreground amplitudes are included only when the data contain residual FG power.
+% We also report the derived combination $S_8\equiv\sigma_8\sqrt{\Omega_{\mathrm{m}}/0.3}$, while $\omega_{\mathrm{cdm}}=\Omega_{\mathrm{m}}(H_0/100)^2-\omega_{\mathrm{b}}$ is determined by the free cosmological parameters.
+
+\begin{table}[ht]
+\caption{%
+Parameters and priors used in the synthetic-data MCMC analyses.
+Gaussian priors are written $\mathcal{N}(\mu,\sigma)$; flat priors are written $[\mathrm{min},\mathrm{max}]$.
+Residual-foreground amplitudes appear only in signal+FG runs.
+Fixed parameters: $\tau_{\mathrm{reio}}=0.0544$, $\sum m_\nu=0.06\,\mathrm{eV}$, and $1-b=0.709$.}
+\label{tab:priors}
+\renewcommand{\arraystretch}{1.5}
+\centering
+\begin{ruledtabular}
+\begin{tabular}{ll}
+Parameter & Prior \\
+\colrule
+$\Omega_{\mathrm{m}}$ & $[0.2,\,0.5]$ \\
+$\sigma_8$ & $[0.6,\,1.0]$ \\
+$H_0$ & $\mathcal{N}(67.66,\,1.0)$ \\
+$n_{\mathrm{s}}$ & $\mathcal{N}(0.9665,\,0.014)$ \\
+$\omega_{\mathrm{b}}$ & $\mathcal{N}(0.02242,\,0.002)$ \\
+$A_{\mathrm{SZ}}$ & $\mathcal{N}(-4.238,\,0.03)$ \\
+$\alpha_{\mathrm{SZ}}$ & $\mathcal{N}(1.12,\,0.03)$ \\
+$\sigma_{\ln Y}$ & $\mathcal{N}(0.173,\,0.023)$ \\
+$A_{\mathrm{CIB}}$ & $[0,\,5]$ (FG only) \\
+$A_{\mathrm{IR}}$ & $[0,\,5]$ (FG only) \\
+$A_{\mathrm{RS}}$ & $[0,\,5]$ (FG only) \\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
+
+\paragraph{Cluster number counts.}
+For the CNC we adopt a binned Poisson likelihood in redshift and signal-to-noise, as implemented in the \texttt{cosmocnc} package \citep{ZubeldiaBolliet2024}. Given observed counts $N^{\mathrm{obs}}_{ij}$ in the redshift bin $[z_i,z_{i+1}]$ and SNR bin $[q_j,q_{j+1}]$, and the theoretical expectations $N_{ij}$ from Equation~\ref{eq:joint_cluster_counts},
+\begin{equation}
+\ln\mathcal{L}_{\mathrm{CNC}}
+=
+\sum_{ij}
+\left[
+N^{\mathrm{obs}}_{ij}\ln N_{ij}
+-
+N_{ij}
+-
+\ln\!\left(N^{\mathrm{obs}}_{ij}!\right)
+\right].
+\label{eq:lnLCNC}
+\end{equation}
+The predicted number counts $N_{ij}$ are computed with the same observable--mass relations, selection function, and completeness used to construct the catalogue, so that the CNC likelihood is fully consistent with the forward model of Secs.~\ref{sec:joint_analysis} and~\ref{subsec:syntheticdata}.
+
+\paragraph{tSZ power spectrum.}
+For the binned tSZ power spectrum we adopt a Gaussian likelihood,
+\begin{equation}
+-2\ln\mathcal{L}_{\mathrm{PS}}
+=
+\left(\hat{\bm{D}}-\bm{D}\right)^{\mathsf T}
+\bm{M}^{-1}
+\left(\hat{\bm{D}}-\bm{D}\right)
++\ln|\bm{M}|
++\mathrm{const.},
+\label{eq:lnLPS}
+\end{equation}
+where $\hat{\bm{D}}$ is the measured bandpower vector in the $18$ multipole bins of Sec.~\ref{subsec:syntheticdata}, $\bm{D}$ is the theoretical prediction (full-sky or masked according to the case under study), and $\bm{M}$ is the bandpower covariance. We use a fixed covariance matrix computed at the fiducial cosmology. The covariance is estimated from the ensemble of 1000 mock maps described in Sec.~\ref{subsec:syntheticdata}, with the Hartlap correction applied to debias the inverse sample covariance \citep{Hartlap2007}. We have verified that the resulting covariance is consistent with the analytic prediction of Eq.~\ref{eq:masked_bandpower_covariance}.
+
+The theoretical bandpower prediction depends on whether residual foreground contamination is included in the data. For synthetic data without residual foregrounds, $\bm{D}=\bm{D}^{\mathrm{tSZ}}$, where $\bm{D}^{\mathrm{tSZ}}$ is the (masked or full-sky) binned halo-model tSZ prediction alone. When the residual foregrounds are included, residual foreground components are included as fixed bandpower templates with free amplitude parameters,
+\begin{equation}
+\bm{D}
+\simeq
+\bm{D}^{\mathrm{tSZ}}
++
+A_{\mathrm{CIB}}\,\bm{D}^{\mathrm{CIB}}
++
+A_{\mathrm{IR}}\,\bm{D}^{\mathrm{IR}}
++
+A_{\mathrm{RS}}\,\bm{D}^{\mathrm{RS}},
+\label{eq:fg_model}
+\end{equation}
+where $\bm{D}^{\mathrm{CIB}}$, $\bm{D}^{\mathrm{IR}}$, and $\bm{D}^{\mathrm{RS}}$ are fixed residual templates for the cosmic infrared background (CIB), infrared point sources (IR), and radio sources (RS), binned into the same $18$ multipole windows as the tSZ model, while $A_{\mathrm{CIB}}$, $A_{\mathrm{IR}}$, and $A_{\mathrm{RS}}$ are the amplitudes of each template.
+
+\paragraph{Cross-covariance between CNC and the tSZ power spectrum.}
+The CNC and the total tSZ power spectrum are in principle correlated because resolved clusters contribute to both observables, and the total tSZ power spectrum is sensitive to massive local clusters which are the most readily detected. Masking all clusters with $q_{\rm obs}>q_{\rm cat}$ removes this shared population, so that the CNC and masked power spectrum probe disjoint sets of clusters and their cross-covariance is strongly suppressed. In Figure~\ref{fig:cnc_ps_corr_mc}, we estimate the correlation between the CNC and tSZ power spectrum from the $1000$ synthetic realizations with matched mock catalogues. The resulting correlation matrices show a non-zero correlation between the CNC and the total tSZ bandpowers, whereas no statistically significant correlation is detected between the CNC and the masked tSZ bandpowers. Nevertheless, we neglect the cross-covariance in both combinations and approximate the joint likelihood as the product of the individual CNC and power-spectrum likelihoods,
+\begin{equation}
+\ln\mathcal{L}_{\mathrm{joint}}
+=
+\ln\mathcal{L}_{\mathrm{PS}}
++
+\ln\mathcal{L}_{\mathrm{CNC}}.
+\label{eq:jointlkl}
+\end{equation}
+This approximation is well justified for the masked power spectrum. For the total power spectrum, we follow \citet{Salvati:2018} which assumes that the covariance between the CNC and tSZ power spectrum measurements can be neglected.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/corrmat_painted_mc.pdf}
+    \caption{\label{fig:cnc_ps_corr_mc}%
+    Sample correlation matrices of the joint data vector
+    $\bigl[N_{\mathrm{cl}}(z),\,\bm{D}\bigr]$, estimated from $1000$
+    synthetic painted realizations and their matched catalogues.
+    \textit{Left panel:} CNC and total tSZ bandpowers. \textit{Right
+    panel:} CNC and bandpowers after masking clusters with $q>5$. Horizontal
+    and vertical lines separate the CNC and multipole blocks. Masking
+    suppresses the off-diagonal bandpower covariance generated by the
+    one-halo trispectrum and removes the CNC--power-spectrum correlation
+    induced by the shared population of massive halos.}
+\end{figure*}
+
+%==============================================================================
+\section{Results}
+\label{sec:results}
+%==============================================================================
+We now present the results from our joint analysis pipeline.
+We first show constraints from synthetic \textit{Planck}-like mocks generated with the same halo-model ingredients as the forward model (Sec.~\ref{subsec:syntheticdata}), and subsequently apply the same analysis to FLAMINGO hydrodynamical simulations. On the synthetic data we run five inference setups:
+\begin{itemize}
+    \item CNC-only,
+    \item masked tSZ power spectrum only,
+    \item full-sky tSZ power spectrum only,
+    \item joint CNC~$+$~masked tSZ power spectrum 
+    \item joint CNC~$+$~full-sky tSZ power spectrum.
+\end{itemize}
+Each setup is applied to a single catalogue realization selected from the ensemble of $1000$ mocks and to its corresponding painted Compton-$y$ map.
+
+\subsection{Synthetic mocks without residual foregrounds}
+\label{sec:results_syn_nofg}
+Figure~\ref{fig:triangle_signal_single} compares the CNC-only, full-sky tSZ, and masked tSZ posteriors in the signal-only case, with the corresponding marginalized constraints summarized in the upper block of Table~\ref{tab:constraints_syn}. The CNC analysis provides substantially tighter constraints than the full-sky tSZ power spectrum. This reflects the additional information retained by binning the cluster catalogue in $q$ and $z$ bins, which captures the mass- and redshift-dependent evolution of the halo abundance. The power spectrum therefore exhibits a degeneracy among $\Omega_{\mathrm{m}}$, $\sigma_8$, $A_{\rm SZ}$, and $\alpha_{\rm SZ}$, which controls the overall amplitude of the tSZ power spectrum.
+
+Masking the detected clusters leads to significantly tighter cosmological constraints on the tSZ power spectrum than using the total tSZ power spectrum, reducing the marginalized uncertainties by factors of approximately $5.4$ for $\Omega_{\mathrm{m}}$, $4.8$ for $\sigma_8$, and $7.0$ for $S_8$. The full-sky tSZ signal is dominated by a relatively small number of massive and local clusters, which generate a large connected trispectrum contribution and hence substantial non-Gaussian sample variance. Masking these rare objects suppresses this covariance, leaving a masked spectrum sourced by the more numerous unresolved cluster population, whose aggregate signal distribution is closer to Gaussian. In the signal-only analysis, the resulting reduction in variance more than compensates for the loss of total tSZ power, thereby increasing the effective information content of the measured spectrum.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/triangle_signal_only_single_probes.pdf}
+    \caption{\label{fig:triangle_signal_single}%
+    Signal-only single-probe posterior distributions for all varied and
+    derived parameters: $\Omega_{\mathrm{m}}$, $\sigma_8$, $S_8$, $H_0$,
+    $n_{\mathrm{s}}$, $\omega_{\mathrm{b}}$, $A_{\mathrm{SZ}}$,
+    $\alpha_{\mathrm{SZ}}$, and $\sigma_{\ln Y}$. Contours enclose $68\%$
+    and $95\%$ credible regions for CNC (green), the unmasked tSZ power
+    spectrum (blue), and the masked tSZ power spectrum (orange); red dashed
+    lines mark the input values. The masked spectrum tightens the $\Omega_m$ and $\sigma_8$ constraints significantly.}
+\end{figure*}
+
+Figure~\ref{fig:triangle_signal_joint} shows the posteriors obtained by combining CNC with the total and masked tSZ power spectrum, respectively, with the CNC-only contour as a common reference. Quantitative summaries are shown in Table~\ref{tab:constraints_syn}. The combination of CNC with the full-sky tSZ power spectrum yields modest improvements in constraining power compared to using CNC alone. The marginalized uncertainties improve by factors of approximately $1.1$, $1.3$, and $2.8$ for $\Omega_{\mathrm{m}}$, $\sigma_8$, and $S_8$, respectively after combining two probes. This modest gain is because of the overlap between the halo populations probed by the two observables, and the large trispectrum covariance of the unmasked tSZ field limits the additional information supplied by the power spectrum. A substantially larger improvement is obtained when CNC is instead combined with the masked tSZ power spectrum. In this case, the marginalized uncertainties are reduced relative to CNC alone by factors of approximately $1.7$, $2.0$, and $7.0$ for $\Omega_{\mathrm{m}}$, $\sigma_8$, and $S_8$, respectively. This stronger gain arises because masking separates the two observables into nearly disjoint halo populations, with the resolved clusters contributing to CNC and the unresolved population contributing to the masked power spectrum, while simultaneously suppressing the trispectrum covariance generated by rare, massive clusters.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/triangle_signal_only_joint.pdf}
+    \caption{\label{fig:triangle_signal_joint}%
+    Signal-only joint posterior distributions compared with CNC alone.
+    Contours enclose $68\%$ and $95\%$ credible regions for CNC (green),
+    CNC combined with the full-sky tSZ power spectrum (red), and CNC combined
+    with the masked tSZ power spectrum (purple); red dashed lines mark the
+    input values. Combining CNC with the masked spectrum substantially
+    tightens the cosmological and scaling-relation constraints, whereas the
+    unmasked combination improves primarily the constraint on $S_8$.}
+\end{figure*}
+
+\begin{table*}[ht]
+\caption{%
+Marginalized posterior means and standard deviations from the synthetic MCMC
+analyses from one realization.
+Columns give constraints on the cosmological parameters
+($\Omega_{\mathrm{m}}$, $\sigma_8$, $S_8$) and residual-foreground amplitudes
+($A_{\mathrm{CIB}}$, $A_{\mathrm{IR}}$, $A_{\mathrm{RS}}$) .
+Upper block: signal-only mocks (no residual templates; FG amplitudes marked
+``--'').
+Lower block: signal plus residual foregrounds with free template amplitudes.
+Input values are $\Omega_{\mathrm{m}}=0.310$, $\sigma_8=0.780$,
+$S_8=0.792$, and $A_{\mathrm{CIB}}=A_{\mathrm{IR}}=A_{\mathrm{RS}}=1$.
+CNC alone does not constrain residual-foreground amplitudes.}
+\label{tab:constraints_syn}
+\label{tab:fg_amps}
+\renewcommand{\arraystretch}{1.5}
+\centering
+\begin{ruledtabular}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccc@{}}
+Probe & $\Omega_{\mathrm{m}}$ & $\sigma_8$ & $S_8$
+& $A_{\mathrm{CIB}}$ & $A_{\mathrm{IR}}$ & $A_{\mathrm{RS}}$ \\
+\colrule
+\multicolumn{7}{l}{\textit{Signal only}} \\
+CNC
+& $0.310\pm0.012$ & $0.778\pm0.014$ & $0.791\pm0.014$
+& -- & -- & -- \\
+Full-sky tSZ PS
+& $0.261\pm0.043$ & $0.828\pm0.043$ & $0.767\pm0.021$
+& -- & -- & -- \\
+Masked tSZ PS
+& $0.311\pm0.008$ & $0.780\pm0.009$ & $0.794\pm0.003$
+& -- & -- & -- \\
+CNC~$+$~full-sky tSZ PS
+& $0.307\pm0.011$ & $0.782\pm0.011$ & $0.791\pm0.005$
+& -- & -- & -- \\
+CNC~$+$~masked tSZ PS
+& $0.310\pm0.007$ & $0.781\pm0.007$ & $0.794\pm0.002$
+& -- & -- & -- \\
+\colrule
+\multicolumn{7}{l}{\textit{Signal~$+$~foreground residuals}} \\
+Full-sky tSZ PS
+& $0.341\pm0.083$ & $0.737\pm0.080$ & $0.770\pm0.036$
+& $1.054\pm0.130$ & $0.993\pm0.087$ & $1.110\pm0.424$ \\
+Masked tSZ PS
+& $0.300\pm0.065$ & $0.720\pm0.084$ & $0.709\pm0.057$
+& $1.033\pm0.028$ & $0.974\pm0.051$ & $1.388\pm0.219$ \\
+CNC~$+$~full-sky tSZ PS
+& $0.309\pm0.011$ & $0.777\pm0.012$ & $0.788\pm0.012$
+& $1.001\pm0.104$ & $1.011\pm0.072$ & $0.968\pm0.375$ \\
+CNC~$+$~masked tSZ PS
+& $0.306\pm0.011$ & $0.777\pm0.013$ & $0.785\pm0.013$
+& $1.005\pm0.021$ & $0.961\pm0.025$ & $1.095\pm0.113$ \\
+\end{tabular*}
+\end{ruledtabular}
+\end{table*}
+
+\subsection{Synthetic mocks with residual foregrounds}
+\label{sec:results_syn_fg}
+We next repeat the synthetic-data analysis after including residual CIB, IR, and RS foreground components, while allowing their template amplitudes $A_{\mathrm{CIB}}$, $A_{\mathrm{IR}}$, and $A_{\mathrm{RS}}$ to vary.
+The CNC likelihood is unchanged, since the catalogue is built from the detection significance derived from the MMF analysis.
+Figure~\ref{fig:triangle_fg_single} and the lower block of
+Table~\ref{tab:constraints_syn} summarize the cosmological and residual-amplitude
+constraints after marginalizing over the residual templates.
+
+Marginalizing over the foreground amplitudes substantially degrades the
+constraining power of both tSZ power-spectrum measurements, and masking giant
+clusters improves the determination of the residual amplitudes themselves
+instead of the cosmological parameters
+(Table~\ref{tab:constraints_syn}).
+Masking tightens the constraint on $\Omega_{\mathrm{m}}$ by a factor of
+approximately $1.3$, while the constraints on $\sigma_8$ are comparable and
+that on $S_8$ is weaker by a factor of approximately $1.6$.
+By contrast, the marginalized uncertainties are reduced by factors of
+approximately $4.6$, $1.7$, and $1.9$ for $A_{\mathrm{CIB}}$, $A_{\mathrm{IR}}$,
+and $A_{\mathrm{RS}}$, respectively, for the masked power-spectrum measurement.
+In our model, we assume that the foreground residuals remain unchanged after
+masking.
+Masking therefore removes part of the tSZ signal while leaving the foreground
+residuals unaffected, increasing their relative contribution to the measured
+spectrum and also the degeneracy between the masked tSZ signal and the
+foreground templates.
+Consequently, the information gained from the reduced covariance is absorbed
+predominantly by the foreground-amplitude constraints rather than by the
+cosmological parameters.
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/triangle_fg_single_probes.pdf}
+    \caption{\label{fig:triangle_fg_single}%
+    Single-probe posterior distributions for synthetic data containing tSZ
+    signal and residual foregrounds. The parameter set includes cosmological
+    and tSZ scaling-relation parameters together with the residual-template
+    amplitudes. Contours enclose $68\%$ and $95\%$ credible regions for the
+    full-sky (blue) and masked (orange) tSZ power spectra; red dashed lines
+    mark the input values. Marginalizing over the foreground amplitudes introduces strong degeneracies between the tSZ signal and the residual foreground templates, substantially broadening the cosmological constraints relative to the signal-only case.}
+\end{figure*}
+
+Combining either power spectrum measurement with CNC breaks the degeneracy
+between cosmology and the residual foreground amplitudes, because the CNC
+constrains the cosmological and observable--mass parameters independently of
+the map-level foreground components.
+Compared to CNC alone, the CNC~$+$~full-sky tSZ power-spectrum combination
+improves the marginalized constraints on $\Omega_{\mathrm{m}}$, $\sigma_8$,
+and $S_8$ by factors of approximately $1.1$, $1.2$, and $1.2$, respectively,
+while the CNC~$+$~masked combination yields improvements of approximately
+$1.1$ for all three parameters.
+The cosmological constraints from both joint analyses are therefore comparable
+and remain dominated by CNC, with little additional gain from the power
+spectrum.
+By contrast, adding CNC to the masked power spectrum reduces the uncertainties
+on $A_{\mathrm{CIB}}$, $A_{\mathrm{IR}}$, and $A_{\mathrm{RS}}$ by factors of
+approximately $1.3$, $2.0$, and $1.9$, respectively, relative to the masked
+power-spectrum-only analysis
+(Table~\ref{tab:constraints_syn}).
+Thus, in the presence of residual foregrounds, the principal improvement from
+the joint CNC~$+$~masked-spectrum analysis is the constraints on foreground
+residual amplitudes, rather than the cosmological constraints.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/triangle_fg_joint.pdf}
+    \caption{\label{fig:triangle_fg_joint}%
+    Joint posterior distributions for synthetic data containing tSZ signal
+    and residual foregrounds. Contours enclose $68\%$ and $95\%$ credible
+    regions for CNC (green), CNC combined with the full-sky tSZ power
+    spectrum (red), and CNC combined with the masked tSZ power spectrum
+    (purple); red dashed lines mark the input values. The cosmological constraints are dominated by CNC alone, while combining CNC and the masked power spectrum improves the foreground residual amplitudes significantly.}
+\end{figure*}
+
+%==============================================================================
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figs/l1_m9_cnc_binned_Nq_immf_scimmf_cib_randomized.pdf}
+    \caption{\label{fig:flamingo_cnc_cib_randomized}%
+    Binned cluster number counts in five logarithmic $q$ bins for the fiducial
+    L1\_m9 multifrequency maps. Bars compare iMMF and sciMMF catalogues on the
+    correlated-CIB sky and on the control sky with randomized CIB (legend gives
+    the total number of detections with $q_{\rm opt}\ge5$ in each sample).
+    Randomizing the CIB increases $N$ for both finders, but the effect is much
+    larger for iMMF.}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figs/l1_m9_fiducial_masking_planck_scimmf.pdf}
+    \caption{\label{fig:flamingo_fiducial_masked_ps}%
+    Fiducial FLAMINGO L1\_m9 tSZ power spectra of the noiseless Compton-$y$
+    map, with clusters masked using the sciMMF catalogue ($q_{\rm opt}$).
+    Curves show $10^{12}D_\ell^{yy}$ for the full-sky map and after masking
+    clusters with $q>50$, $20$, $10$, and $6$ (legend reports the number of
+    masked clusters $N$). Bandpowers use the 18 \textit{Planck}-style
+    multipole bins through $\ell=959.5$ and twelve logarithmic bins with
+    $\Delta\ln\ell=0.4$ at higher $\ell$. Open circles and squares show the
+    \textit{Planck} measurements of \citet{Bolliet_2018} and the $q>6$
+    masked spectrum of \citet{Rotti_2021}, respectively. Progressive
+    masking preferentially suppresses the large-scale power sourced by
+    massive resolved clusters.}
+\end{figure}
+
+\subsection{Cluster detection and the masked tSZ power spectrum in FLAMINGO}
+\label{sec:flamingo_fiducial}
+The synthetic analyses above show that the gain from masking resolved clusters is largely absorbed by residual-foreground amplitudes once those amplitudes are marginalized over. We now extend this analysis to the FLAMINGO hydrodynamical simulations, where the maps are generated directly from the simulated gas distribution, and clusters are detected from mock multifrequency maps with \texttt{SZiFi} rather than assigned at known halo positions.
+
+The FLAMINGO mock maps include CIB emission that is spatially correlated with the tSZ signal, which can bias the signal-to-noise ratio obtained by the MMF. To study this correlation, we construct a controlled sky map in
+which only the CIB is randomized. We divide the CIB maps into the same
+768 HEALPix tiles of $N_{\mathrm{side}}=8$ used for cluster finding,
+draw a random permutation of those tiles, and apply that permutation
+to the CIB at every frequency, leaving the CMB, tSZ, and noise in place. This preserves the CIB auto-power and SED while removing its spatial correlation with the tSZ. Figure~\ref{fig:flamingo_cnc_cib_randomized} shows the resulting binned CNC. For the iMMF, randomizing the CIB leads to an increase in CNC in several of the bins, which is larger than the corresponding Poisson errors. In contrast, the sciMMF catalogue is much more stable across the bins. This indicates that, for the FLAMINGO mocks considered here, cluster-correlated CIB can have a non-negligible impact on the recovered CNC, while the sciMMF reduces this sensitivity to CIB contamination. We therefore adopt the sciMMF catalogue to define the cluster masks used in the remainder of the analysis. Note that this impact depends on the experimental configuration, and the randomization test cannot be performed directly on real observations.
+
+We then study the impact of cluster masking on the tSZ power spectrum on the underlying noiseless Compton-$y$ maps. Using the sciMMF catalogue, we
+progressively mask clusters with $q_{\rm opt}>50$, $20$, $10$, and $6$ at radius $\max(4\theta_{500},2\theta_{\rm FWHM})$, and measure $D_\ell^{yy}$ with the MASTER estimator used for the synthetic data. Figure~\ref{fig:flamingo_fiducial_masked_ps} shows the result. Masking
+five $q>50$ clusters already removes about half of the power at large scales, and lowering the threshold to $q>6$ leaves only
+$\simeq18\%$ of the full-sky bandpower at large scales, while the same mask
+removes $\simeq37\%$ at $\ell\sim1000$. The suppression due to cluster masking weakens toward small scales as expected, because the small-scale signal is dominated by the lower mass halos that remain unmasked as shown in Sec.~\ref{sec:kernels}. We also compare the total and masked power spectra for $q_{\rm cat}=6$ with the \textit{Planck} tSZ power-spectrum measurements of \citet{Bolliet_2018} and the masked tSZ power spectrum of \citet{Rotti_2021}. The total tSZ power spectrum lies systematically above the \textit{Planck} measurements from \citet{Bolliet_2018}, consistent with the findings of \citet{McCarthy:2023ism}, who argued that this excess favours a lower clustering amplitude rather than extreme baryonic feedback. Interestingly, after masking clusters with $q\geq6$, the masked power spectrum is lower than the masked measurement of \citet{Rotti_2021}. This should nevertheless be interpreted cautiously, since the \textit{Planck} data is derived from component-separated $y$-maps and sensitive to the modelling of residual foregrounds. \citet{Rotti_2021} found that masking also changes the degeneracy between the inferred tSZ and CIB amplitudes, possibly because of CIB--tSZ correlations associated with the resolved cluster population. Differences in the resolved cluster populations, selection functions, and foreground treatment can therefore all affect the comparison. It does not by itself establish improved agreement with the underlying \textit{Planck} tSZ signal.
+
+We next reconstruct the Compton-$y$ maps with HILC and compare their independent-noise cross-spectra with the noiseless tSZ spectrum evaluated using the same mask. Figure~\ref{fig:flamingo_hilc_recovered} shows the five deprojection choices (no deprojection, CIB, CIB$+\delta \beta$, CIB$+\delta \beta+$CMB, and CIB$+\delta \beta + \delta T$). Applying the fitted weights to isolated CIB and CMB maps gives the component residual cross-spectra. The plotted uncertainties combine the approximate split-cross Gaussian variance with the model one-halo trispectrum.
+
+We first compare the reconstructed power spectra with the ground truth on the unmasked and masked skies. On the unmasked sky, the reconstructed tSZ power spectra agree well with the input signal on large scales across the different deprojection prescriptions. At $\ell\simeq960$, the CIB residual is approximately $61\%$ of the true tSZ power without deprojection and $32\%$ with CIB deprojection. The corresponding recovered-to-true ratios are $1.44$ and $1.48$: reducing the isolated CIB residual does not necessarily reduce the net bias because other residual and cross terms also change. Adding the CIB spectral-index constraint gives a ratio of $1.27$, and additionally deprojecting the CMB lowers it to $1.10$. Deprojecting the temperature moment instead strongly suppresses the CIB residual but produces a reconstruction dominated by CMB leakage and noise at high multipoles. 
+
+After masking the $q>5$ detections, the true tSZ power is suppressed more strongly than the residual CIB power. Consequently, on small scales the CIB residual without deprojection becomes comparable to the true masked tSZ signal, and the reconstructed-to-true ratio reaches $1.85$ at $\ell\simeq960$. This ratio decreases to $1.44$ with CIB deprojection, $1.27$ with CIB$+\delta\beta$ deprojection, and $1.18$ with CIB$+\delta\beta+$CMB deprojection. At $\ell\simeq10$, the corresponding ratios are $0.53$, $0.71$, $1.96$, and $1.87$, respectively. The CIB$+\delta\beta+\delta T$ reconstruction leads to a large variance penalty, with error bars approximately twenty times larger in the first multipole bin and six times larger in the last bin than in the reconstruction without deprojection. These results highlight the trade-off between foreground suppression and reconstruction variance in deprojections.
+
+Figure~\ref{fig:flamingo_hilc_cib_full_vs_masked} compares the CIB residual auto-spectrum before and after $q>5$ masking for the same five deprojections. Each curve applies that sky's own HILC weights to the isolated CIB maps. Without deprojection, masking reduces the residual to 29\% of its unmasked value at $\ell \simeq 10$. The ratio rises toward smaller scales and is 0.96 at $\ell \simeq 960$, so the last bin is almost unchanged. The stronger suppression on large scales may reflect the correlated CIB contributions from resolved large clusters. With CIB deprojection the masked residual is instead larger on large scales, by a factor of 1.8 at $\ell \simeq 10$ and 2.2 at $\ell \simeq 14$, and smaller on small scales, falling to 0.69 of the unmasked residual near $\ell \simeq 570$ and 0.83 at $\ell \simeq 960$. Adding the spectral-index constraint, with or without CMB deprojection, produces nearly the same residual and raises it by a factor of about 40 at $\ell \simeq 10$ and about 65 at $\ell \simeq 14$; at $\ell \simeq 960$ the masked residual remains higher, by factors of 1.5 and 1.4. Deprojecting the temperature moment as well gives the smallest unmasked residual at high multipoles, but the masked spectrum lies above its unmasked counterpart in every bin. For $\ell \lesssim 70$ it also exceeds the masked residual with no deprojection. 
+
+With CIB deprojection, the residual remains nearly unchanged on large scales after masking and decreases slightly on small scales. With moment deprojection, masking has very little effect on the CIB residual, with the masked and unmasked spectra remaining nearly identical across the multipole range considered. The interpretation becomes less direct once deprojection is applied, since the additional constraints modify the HILC weights and hence the effective spectral and spatial response to the CIB. Overall, the CIB residual becomes progressively less sensitive to masking as additional CIB degrees of freedom are deprojected.
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.49\textwidth]{figs/l1_m9_hilc_recovered_residuals_fullsky.pdf}
+    \includegraphics[width=0.49\textwidth]{figs/l1_m9_hilc_recovered_residuals_q5masked.pdf}
+    \caption{\label{fig:flamingo_hilc_recovered}%
+    HILC reconstruction of the fiducial L1\_m9 Compton-$y$ field for the
+    total sky (left) and after masking clusters with $q>5$ ($N=2868$; right).
+    The black curve is the spectrum of the underlying noiseless $y$ map with
+    the same mask. Markers show the noise-debiased split-cross HILC
+    bandpowers for five deprojection choices, with error bars combining the
+    split-cross Gaussian variance and the one-halo trispectrum. Solid
+    (dashed) coloured curves are the CIB (CMB) residuals obtained by
+    applying the same HILC weights to the isolated component maps.
+    Bandpowers use the 18 \textit{Planck}-style multipole bins through
+    $\ell=959.5$.}
+\end{figure*}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figs/l1_m9_hilc_cib_residual_full_vs_masked.pdf}
+    \caption{\label{fig:flamingo_hilc_cib_full_vs_masked}%
+    CIB residual auto-spectrum of the fiducial L1\_m9 HILC reconstruction,
+    comparing the unmasked sky (solid) with the $q>5$ masked sky (dashed) for
+    the same deprojection choices as Fig.~\ref{fig:flamingo_hilc_recovered}.
+    Each spectrum uses the HILC weights of that sky. Masking lowers the
+    residual only with no deprojection, and mainly on large scales. With CIB
+    deprojection, and more so once the CIB moments are deprojected, the
+    masked residual lies above the unmasked residual on large scales.}
+\end{figure}
+
+\subsection{Impact of astrophysical variations on the cluster counts and masked tSZ power spectrum}
+\label{subsec:feedback_flamingo}
+The synthetic analyses demonstrate that masking resolved clusters can substantially reduce the non-Gaussian covariance of the tSZ power spectrum, although the corresponding gain in cosmological information is strongly degraded once residual foreground amplitudes are marginalized over. We therefore ask how the observables respond to the variations in the astrophysical model in the FLAMINGO simulations at fixed cosmology.
+
+We first compare the sciMMF catalogues for the different astrophysical prescriptions. Figure~\ref{fig:flamingo_feedback_cnc} shows the binned CNC in five logarithmic bins over $5<q_{\rm opt}<40$ for the fiducial L1\_m9 sky and for the $f_{\rm gas}-8\sigma$ and $M_\star-1\sigma$ variations. The $f_{\rm gas}-8\sigma$ catalogue contains fewer clusters across the bins than the fiducial catalogue. This is possibly because lowering cluster gas fractions requires stronger AGN feedback, which reduces the integrated Compton-$y$ signal at the cluster center, and therefore the number of clusters that exceed $q_{\rm opt}=5$ decreases. In contrast, the $M_\star-1\sigma$ variation produces a modest increase in the CNC across the bins. Lowering the calibrated stellar masses leaves a larger fraction of baryons in the gas phase, increasing the thermal pressure of the ICM and hence the SZ signal of some halos.
+
+Before considering the multifrequency reconstruction of the tSZ power spectrum using HILC, we first consider the (masked) tSZ power spectra computed on the noiseless Compton-$y$ maps. Figure~\ref{fig:flamingo_truth_yy_ratio} shows the ratios of the total and $q>5$ masked tSZ power spectra for the $f_{\rm gas}-8\sigma$ and $M_\star-1\sigma$ models relative to the fiducial L1\_m9 case. We also show the relative uncertainties of the unmasked and masked signal-only power spectra for the L1\_m9 fiducial case as shaded bands, including both the Gaussian term and the one-halo trispectrum. The substantially narrower band after masking reflects the reduction of non-Gaussian trispectrum contribution when resolved clusters are masked.
+
+The $f_{\rm gas}-8\sigma$ model produces a strongly scale-dependent response, with enhanced power at low multipoles and suppressed power at higher multipoles. The high-$\ell$ suppression is consistent with stronger AGN feedback redistributing hot gas from halo centres to larger radii, particularly in groups and lower-mass clusters with shallower potential wells, thereby broadening the pressure profiles and reducing small-scale power. The enhancement towards low multipoles may partly reflect the contribution of displaced hot gas to a more extended pressure distribution. Note that previous FLAMINGO studies similarly find that stronger feedback suppresses the integrated Compton-$y$ signal within $R_{500c}$, while boost the large-scale bias-weighted pressure \citep{Braspenning2024}. At high redshift, it can also enhance the signal integrated within $5R_{\rm 500c}$, where the correlated two-halo gas contributes \citep{Salcido2026}. Moreover, for the masked power spectrum, the response is further modified by number of resolved clusters being masked: stronger feedback leaves fewer clusters above the $q>5$ masking threshold, increasing the contribution from clusters that remain in the unresolved population. This tends to increase the unresolved power, while it also competes with the feedback-induced suppression of the halo mass function, which reduces the abundance of halos at a given mass.
+
+The ratio obtained for the $M_\star-1\sigma$ variation shows a few-percent enhancement in the tSZ power spectrum, with only weak dependence on scale. This nearly scale-independent response suggests a a modest increase in the overall amplitude of the thermal pressure profile rather than a change in the shape. Shifting the SMF calibration towards lower stellar masses suppresses the conversion of cooling gas into stars through stronger stellar feedback, leaving a larger fraction of baryons in the hot gas phase in the ICM and thereby increasing the Compton-$y$ signal. This interpretation is also consistent with the increase in resolved number of clusters compared to fiducial model as shown in Figure~\ref{fig:flamingo_feedback_cnc}. This enhancement is unlikely to be driven by cluster selection, since an increase in Compton-$y$ signal would result in more clusters being masked and would instead tend to reduce the residual tSZ power.
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figs/szifi_homog_cnc_binned_Nq_qgt5_scimmf_fgas_mstar.pdf}
+    \caption{\label{fig:flamingo_feedback_cnc}%
+    Binned sciMMF cluster number counts in five logarithmic bins over
+    $5<q_{\rm opt}<40$ for the fiducial L1\_m9 sky and the
+    $f_{\rm gas}-8\sigma$ and $M_\star-1\sigma$ astrophysical variations.
+    The legend gives the total number of detections in this $q$ range.
+    Stronger AGN feedback ($f_{\rm gas}-8\sigma$) reduces the counts;
+    lowering the stellar-mass calibration ($M_\star-1\sigma$) increases them.}
+\end{figure}
+
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/l1_m9_hilc_truth_yy_ratio.pdf}
+    \caption{\label{fig:flamingo_truth_yy_ratio}%
+    Noiseless Compton-$y$ spectra of the $f_{\rm gas}-8\sigma$ (left) and
+    $M_\star-1\sigma$ (right) variations relative to the fiducial L1\_m9
+    spectrum of the same mask. The axis is
+    $\Delta D_\ell^{yy}/D_\ell^{yy,\mathrm{fid}}
+    =(D_\ell^{yy}-D_\ell^{yy,\mathrm{fid}})/D_\ell^{yy,\mathrm{fid}}$,
+    where $D_\ell^{yy}$ is the power spectra evaluated from the variant and $D_\ell^{yy,\mathrm{fid}}$ is evaluated from the fiducial
+    L1\_m9. Black circles show the ratio from the unmasked sky and blue circles the $q>5$ sky, masked with that variant's own sciMMF catalogue. Shaded bands are
+    $\pm\sigma/D_\ell^{yy,\mathrm{fid}}$ for the fiducial noiseless
+    measurement, with $\sigma^2=\sigma_G^2+\sigma_T^2$, where $\sigma_G$ is
+    the Gaussian variance of the fiducial $C_\ell^{yy}$ auto-spectrum and
+    $\sigma_T$ is the one-halo trispectrum. The bands are the same in both
+    panels and show the uncertainty on the fiducial spectrum.}
+\end{figure*}
+
+We next examine how these astrophysical responses propagate through the multifrequency HILC reconstruction and investigate the impact of foreground residuals on the reconstructed power spectra. For each variation, we compute the HILC split-cross bandpowers and quantify the resulting change relative to the fiducial noiseless tSZ signal using the fractional difference. Figure~\ref{fig:flamingo_hilc_feedback_ratio} shows this ratio for the unmasked sky with no deprojection and for the $q>5$ masked sky with no deprojection, CIB deprojection, CIB$+\delta\beta$, CIB$+\delta\beta+$CMB, and CIB$+\delta\beta+\delta T$. The shaded bands show the $1\sigma$ relative uncertainty of the corresponding fiducial reconstruction, with $\sigma^2=\sigma_G^2+\sigma_T^2$, where $\sigma_G$ is the split-cross Gaussian uncertainty of the HILC $y$ map and $\sigma_T$ is the one-halo trispectrum. Compared with the noiseless case, the Gaussian contribution is larger because the reconstructed maps contain noise and foreground residuals, which leads to larger bandpower variance even in the split-cross spectra. Different deprojections introduce additional noise penalties as expected. On the masked sky, CIB deprojection adds little noise and lies close to the no-deprojection band over most multipoles, though it is about $40\%$ wider at $\ell\simeq10$. Deprojecting CIB$+\delta\beta$ widens it by about a factor of three at $\ell\lesssim300$ and by about $30\%$ at higher $\ell$, and adding the CMB constraint leaves that band essentially unchanged. Deprojecting the additional CIB temperature moment, CIB$+\delta\beta+\delta T$, inflates the band substantially, by about a factor of thirteen at $\ell\simeq10$.
+
+We also plot the level of foreground residuals, computed as the difference between the reconstructed HILC power spectrum and the corresponding noiseless tSZ power spectrum for each feedback variation, normalized by the fiducial noiseless tSZ power spectrum. In several cases, the foreground residuals are comparable to or larger than the statistical uncertainties of the HILC measurement. This indicates that foreground contamination may become a limiting systematic when using the reconstructed tSZ power spectrum to distinguish between feedback models, and distinguishing between different feedback models requires accurate modelling of the foreground residuals.
+
+% \LX{Fix transition and all below.}We then measure the HILC split-cross bandpowers of each variant and compute the ratio to the fiducial L1\_m9 reconstruction with the same masking threshold and the same deprojection. Figure~\ref{fig:flamingo_hilc_feedback_ratio} shows this ratio for the unmasked sky with no deprojection and for the $q>5$ masked sky with no deprojection, CIB deprojection, CIB$+\delta\beta$, CIB$+\delta\beta+$CMB, and CIB$+\delta\beta+\delta T$. The shaded bands represent the $1\sigma$ envelope of the fiducial L1\_m9 measurement of that reconstruction, $1\pm\sigma/D_\ell^{\rm fid}$, with $\sigma^2=\sigma_G^2+\sigma_T^2$, where $\sigma_G$ is the split-cross Gaussian error of the L1\_m9 HILC $y$ map and $\sigma_T$ is the one-halo trispectrum computed at fiducial cosmology and scaling relation parameters. The unmasked (Total) band is broad at low $\ell$ because the trispectrum dominates the unmasked covariance. Masking resolved clusters substantially suppresses this contribution, increasing the sensitivity of the large-scale power spectrum to differences between the astrophysical models. On the $q>5$ sky, CIB deprojection does not add significant noise penalty, leaving a band indistinguishable from the no deprojection prescription. Deprojecting CIB$+\delta\beta$ widens the band slightly, and adding a CMB constraint on top of CIB$+\delta\beta$ does not change it further. Deprojecting the additional CIB temperature moment, CIB$+\delta\beta+\delta T$, inflates the band substantially, especially at $\ell\lesssim100$.
+
+% For the $f_{\rm gas}-8\sigma$ model, the no-deprojection reconstruction preserves the scale-dependent response seen in the noiseless Compton-$y$ spectrum. The unmasked power is enhanced by a few percent at the lowest multipoles and becomes increasingly suppressed towards higher $\ell$, with the difference becoming statistically significant after masking reduces the covariance. CIB deprojection yields a similar response. The CIB$+\delta\beta$ and CIB$+\delta\beta+$CMB reconstructions still show an enhancement on large scales and suppression at higher multipoles, although the low-$\ell$ response is noisier because of the increased reconstruction variance. The CIB$+\delta\beta+\delta T$ reconstruction is substantially noisier on large scales, whereas its high-$\ell$ ratio approaches unity because the CMB residuals dominate on small scales (Fig. \ref{fig:flamingo_hilc_recovered}).
+
+% For the $M_\star-1\sigma$ model, the no-deprojection and CIB-deprojected reconstructions retain the few-percent enhancement seen in the noiseless Compton-$y$ spectrum. After deprojecting the CIB spectral-index moment, however, the ratio falls below unity over a broad range of multipoles. This is because, at higher multipoles where residual foreground power becomes increasingly important, the reconstruction becomes sensitive to differences in the residual CIB contribution between the $M_\star-1\sigma$ and fiducial model. The suppression reflects a lower CIB residual in the $M_\star-1\sigma$ variation compared to fiducial model. The suppression therefore reflects a lower residual CIB contribution in the $M_\star-1\sigma$ variation. The CIB$+\delta\beta+\delta T$ reconstruction is again substantially noisier on large scales, while the ratio approaches unity at high multipoles as residual CMB power becomes dominant and dilutes the relative tSZ response.
+
+
+% The unmasked power is enhanced by a few percent at the lowest multipoles and becomes increasingly suppressed towards higher $\ell$, and becomes statistically significant after masking. CIB deprojection gives a similar response. The CIB$+\delta\beta$ and CIB$+\delta\beta+$CMB reconstructions show larger fluctuations at large scales, reflecting it is noisy, and small scale suppress. The CIB$+\delta\beta+\delta T$ reconstruction is substantially noisier on large scales and small scale ratio is 1 because small scales CMB residuals dominate.
+
+% For $f_{\rm gas}-8\sigma$, the ratios show a scale-dependent response. The unmasked spectrum is a few percent high at $\ell\simeq10$ and is suppressed by $\simeq12\%$ near $\ell\simeq300$. After $q>5$ masking, the no-deprojection and CIB-deprojected ratios rise to $\simeq20\%$ above unity at $\ell\simeq10$ and fall below unity at high $\ell$. This behaviour is qualitatively consistent with the redistribution of thermal pressure produced by stronger AGN feedback, which removes gas from halo interiors and deposits it at larger radii \citep{McCarthy:2023ism,Braspenning2024}. The CIB$+\delta\beta$ and CIB$+\delta\beta+$CMB reconstructions show a different scale dependence, indicating that their response cannot be interpreted solely in terms of changes in the underlying tSZ pressure distribution. These reconstructions are also noisier because of the additional deprojection constraints. These reconstructions are also noisier because of the additional deprojection constraints. Their detailed ratios therefore reflect a combination of the underlying baryonic response and the properties of the component-separation procedure, making a direct physical interpretation less straightforward.
+
+% For the $M_\star-1\sigma$ variation, the unmasked no-deprojection power spectrum is enhanced by a few percent relative to the fiducial case on large scales, with only weak scale dependence. This excess is not significant compared with the corresponding uncertainties on the unmasked sky. After applying the $q>5$ mask, the no-deprojection ratio remains enhanced at a similar level, while the reduced covariance makes the enhancement more statistically significant. CIB deprojection also yields an evident large scale enhancement. The CIB$+\delta\beta$ and CIB$+\delta\beta+$CMB reconstructions again give nearly identical results, but instead lie $\simeq10$--$20\%$ below unity at $\ell \lesssim 1000$. This likely reflects the response of constrained ILC to the correlation between tSZ and CIB, rather than changes in the thermal-pressure distribution. Note that in the FLAMINGO simulations we considered here, the CIB maps are constructed directly from the simulated star-formation-rate lightcones, and the $M_\star-1\sigma$ model predicts suppressed star formation and a correspondingly lower CIB power than the fiducial model. The CIB$+\delta\beta+\delta T$ reconstruction is sufficiently noisy that it cannot discriminate between the models. Overall, these comparisons demonstrate that the reconstructed tSZ power spectrum is sensitive to the astrophysical prescription, while also showing that the inferred response is sensitive to the adopted component-separation scheme.
+
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=\columnwidth]{figs/szifi_homog_cnc_binned_Nq_qgt5_scimmf_fgas_mstar.pdf}
+%     \caption{\label{fig:flamingo_feedback_cnc}%
+%     Binned sciMMF cluster number counts in five logarithmic bins over
+%     $5<q_{\rm opt}<40$ for the fiducial L1\_m9 sky and the
+%     $f_{\rm gas}-8\sigma$ and $M_\star-1\sigma$ astrophysical variations.
+%     The legend gives the total number of detections in this $q$ range.
+%     Stronger AGN feedback ($f_{\rm gas}-8\sigma$) reduces the counts;
+%     lowering the stellar-mass calibration ($M_\star-1\sigma$) increases them.}
+% \end{figure}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/l1_m9_hilc_feedback_fractional_fg_residual_yrange_truth.pdf}
+    \caption{\label{fig:flamingo_hilc_feedback_ratio}%
+    Noiseless Compton-$y$ spectra and HILC foreground residuals for
+    $f_{\rm gas}-8\sigma$ (left) and $M_\star-1\sigma$ (right), on the
+    same axis as Fig.~\ref{fig:flamingo_truth_yy_ratio}. Black and blue
+    circles are the unmasked and $q>5$ noiseless spectra,
+    $\Delta D_\ell^{yy}/D_\ell^{yy,\mathrm{fid}}
+    =(D_\ell^{yy}-D_\ell^{yy,\mathrm{fid}})/D_\ell^{yy,\mathrm{fid}}$.
+    Coloured curves are the foreground residual
+    $(D_\ell^{\mathrm{rec}}-D_\ell^{yy})/D_\ell^{yy,\mathrm{fid}}$,
+    where $D_\ell^{\mathrm{rec}}$ is the HILC split-cross bandpower and
+    $D_\ell^{yy}$ is the noiseless spectrum of that variant and mask.
+    The $q>5$ mask uses each variant's own sciMMF catalogue. Shaded bands
+    are $\pm\sigma/D_\ell^{yy,\mathrm{fid}}$ for the fiducial L1\_m9
+    reconstruction of the same deprojection, with
+    $\sigma^2=\sigma_G^2+\sigma_T^2$, where $\sigma_G$ is the split-cross
+    Gaussian variance and $\sigma_T$ is the one-halo trispectrum.
+    The grey band is the unmasked uncertainty and is broad at low $\ell$, where the trispectrum dominates. For the masked case, the coloured bands correspond to no deprojection (blue), CIB deprojection (orange), CIB$+\delta\beta$ (green),
+    CIB$+\delta\beta+$CMB (pink), and
+    CIB$+\delta\beta+\delta T$ (yellow). CIB deprojection increases the
+    large-scale uncertainty, with a further increase when $\delta\beta$ is
+    also deprojected. The CIB$+\delta\beta$ and
+    CIB$+\delta\beta+$CMB uncertainties nearly overlap, while additionally
+    deprojecting $\delta T$ leads to a substantially larger uncertainty.
+    Values outside $\pm0.3$ fall beyond the plotted range.}
+\end{figure*}
+
+% \subsection{Progressive masking on fiducial FLAMINGO simulation}
+% \label{sec:flamingo_results}
+% %==============================================================================
+% \LX{This section is currently wrong. Fixed the 2h term due to $h^3$ in matter power spectrum. May need to run the MMF finder on FLAMINGO, it maybe ok.}
+% We first measure the total and masked tSZ spectra of the fiducial
+% FLAMINGO L1\_m9 lightcone using the pipeline described in Sec.~\ref{sec:methods_flamingo},
+% with catalogue thresholds $q_{\rm cat}\in\{50,\,20,\,10,\,5\}$.
+% The left panel of Figure~\ref{fig:flamingo_fiducial_masked_ps} shows the resulting bandpowers on the fiducial FLAMINGO L1\_m9 map. The shape of the masked power spectra follows the expected behaviour. Masking preferentially removes massive clusters, thereby suppressing power most strongly on large angular scales, whereas the masked spectra approach the total spectrum at high multipoles. This trend is consistent with the halo-contribution kernels presented in Sec.~\ref{sec:kernels}: rare, massive, low-redshift clusters dominate the one-halo term at low $\ell$ and are also the systems most likely to exceed the catalogue threshold, while the small-scale signal receives an increasing contribution from the more numerous, lower-mass halos that remain unmasked.
+
+% The right panel of Figure~\ref{fig:flamingo_fiducial_masked_ps} compares the total and masked power spectra for $q_{\rm cat}=6$ with the \textit{Planck} tSZ power-spectrum measurements of \citet{Bolliet_2018} and the masked tSZ power spectrum of \citet{Rotti_2021}. The total tSZ power spectrum lies systematically above the \textit{Planck} measurements from \citet{Bolliet_2018}, consistent with the findings of \citet{McCarthy:2023ism}, who argued that this excess favours a lower clustering amplitude rather than extreme baryonic feedback. Interestingly, after masking clusters with $q\geq6$, the masked power spectrum is lower than the masked measurement of \citet{Rotti_2021}. This should nevertheless be interpreted cautiously, since the \textit{Planck} data is derived from component-separated $y$-maps and sensitive to the modelling of residual foregrounds. \citet{Rotti_2021} found that masking also changes the degeneracy between the inferred tSZ and CIB amplitudes, possibly because of CIB--tSZ correlations associated with the resolved cluster population. Therefore, the improved agreement may reflect either a genuine discrepancy between the resolved clusters in FLAMINGO simulations and the resolved clusters in \textit{Planck} cluster catalogues, or systematic uncertainties in the extraction of the masked tSZ spectrum.
+
+% We next test whether the parametric halo model used for the synthetic data is a good description for the FLAMINGO bandpowers. We adopt the Gaussian power-spectrum likelihood of Eq.~\ref{eq:lnLPS} for the 18 \textit{Planck}-style multipole bins. The cosmological parameters are fixed to the FLAMINGO D3A values, while the remaining nuisance parameters are fixed to $\alpha_{\rm SZ}=1.12$, $\sigma_{\ln Y}=0.173$, and $B=1.41$. We allow only the overall tSZ amplitude, $A_{\rm SZ}$, to vary, adopting the Gaussian prior $A_{\rm SZ}\sim\mathcal{N}(-4.095,,0.03)$. We first fit the total tSZ power spectrum and obtain a best-fitting value of $A_{\rm SZ}=-4.108$, at which we evaluate the theoretical covariance. We then apply the same likelihood and parameter settings to the masked spectra at each catalogue threshold. The resulting constraints on $A_{\rm SZ}$ and the corresponding $\chi^2$ values are reported in Table~\ref{tab:flamingo_asz_fit}. 
+
+% The fits show a systematic dependence on the masking threshold. First, the preferred value of $A_{\rm SZ}$ shifts systematically upwards as the masking threshold is lowered, from $-4.107\pm0.004$ on the full sky to $-4.053\pm0.001$ for $q_{\rm cat}=5$. Second, the goodness of fit deteriorates rapidly with increasingly aggressive masking. The threshold-dependent shift in $A_{\rm SZ}$, together with the rapidly increasing $\chi^2$, shows that the masked FLAMINGO spectra cannot be described by our default halo model. Figure~\ref{fig:flamingo_asz_fit} compares the measured bandpowers with the best-fitting halo-model prediction for each sky cut. We also plot the one-halo Poisson limit estimated from $\sum Y_{5R_{500c}}^2/(4\pi)$, where $Y_{5R_{500c}}$ is the spherically integrated Compton-$y$ signal within a radius $5R_{\rm 500c}$, obtained from the SOAP halo properties provided in the FLAMINGO halo-lightcone catalogues. For the more aggressive masks, both the halo-model prediction and the catalogue-based Poisson estimate lie below the measured spectrum, particularly at low multipoles. The increase in the best-fitting $A_{\rm SZ}$ can therefore be understood as the model attempting to compensate for this excess power, although a uniform amplitude rescaling cannot reproduce its scale dependence. This discrepancy could partly reflect additional large-scale pressure beyond $5R_{\rm 500c}$, but more strongly suggests that the two-halo contribution is underestimated in the default halo model.
+
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=\columnwidth]{figs/l1_m9_asz_fit_bandpowers_qfrommap.pdf}
+%     \caption{\label{fig:flamingo_asz_fit}%
+%     One-parameter $A_{\rm SZ}$ fits to the fiducial L1\_m9 bandpowers in 18
+%     inclusive \textit{Planck}-style multipole bins, shown for the full sky
+%     and four map-based masking thresholds. Markers denote the measured
+%     spectra; solid curves show the best-fit one-halo plus two-halo prediction
+%     at the minimum-$\chi^2$ value of $A_{\rm SZ}$ for each sky cut. Dashed
+%     curves of the same colour show the catalogue-based Poisson limit,
+%     $\sum Y_{5R_{500}}^2/(4\pi)$. The increasingly poor fits under deeper
+%     masking indicate a scale-dependent mismatch that cannot be absorbed by
+%     varying $A_{\rm SZ}$ alone.}
+% \end{figure}
+
+% \begin{table}[ht]
+% \caption{%
+% Marginalized $A_{\mathrm{SZ}}$ constraints and minimum $\chi^2$ from
+% one-parameter MCMC fits to the fiducial L1\_m9 bandpowers.
+% All other parameters are fixed to the D3A cosmology and to
+% $\alpha_{\mathrm{SZ}}=1.12$, $\sigma_{\ln Y}=0.173$, and $B=1.41$.
+% Covariances are evaluated from the custom-GNFW theory at the converged
+% full-sky best fit.
+% There are 17 degrees of freedom (18 bandpowers minus one fitted parameter).}
+% \label{tab:flamingo_asz_fit}
+% \renewcommand{\arraystretch}{1.5}
+% \centering
+% \begin{ruledtabular}
+% \begin{tabular}{lcc}
+% Sky cut & $A_{\mathrm{SZ}}$ & $\chi^2$ \\
+% \colrule
+% Full sky & $-4.107\pm0.004$ & $45.2$ \\
+% $q>50$ & $-4.108\pm0.003$ & $82.8$ \\
+% $q>20$ & $-4.094\pm0.003$ & $376$ \\
+% $q>10$ & $-4.073\pm0.002$ & $1397$ \\
+% $q>5$ & $-4.053\pm0.001$ & $4690$ \\
+% \end{tabular}
+% \end{ruledtabular}
+% \end{table}
+
+
+% %==============================================================================
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=\textwidth]{figs/l1_m9_feedback_ps_logbins_multiq_qfrommap.pdf}
+%     \caption{\label{fig:flamingo_feedback_ps}%
+%     FLAMINGO L1\_m9 tSZ power spectra for the fiducial model and eight
+%     astrophysical variants, measured in twelve logarithmic multipole bins
+%     with $\Delta\ln\ell=0.4$ and $\ell_{\rm max}=10^{4}$. Panels show the
+%     full sky (upper left) and the empirical map-based selections $q>20$
+%     (upper right), $q>10$ (lower left), and $q>5$ (lower right). Differences
+%     among the models increase toward high multipoles and persist as the
+%     resolved-cluster mask is made progressively deeper.}
+% \end{figure*}
+
+% \subsection{Impact of feedback on the masked power spectrum}
+% \label{subsec:moreresults_flamingo}
+% %==============================================================================
+% The impact of baryonic feedback on the total tSZ power spectrum has previously been studied using the FLAMINGO astrophysics-variation suite. \citet{McCarthy:2023ism} found that the total tSZ power spectrum is insensitive to even large variations in the baryonic physics on the large angular scales probed by \textit{Planck}, because the signal is dominated by massive clusters whose baryon content is relatively insensitive to feedback. At higher multipoles, however, the contribution from lower-mass systems increases and the predicted power spectrum becomes more sensitive to the gas-fraction and feedback prescriptions. Masking changes this halo-mass weighting by removing the massive clusters that dominate the total power spectrum. The residual power spectrum is consequently sourced more strongly by lower-mass unresolved systems, whose gas content is more sensitive to feedback. We investigate how baryonic feedback modifies the shape and amplitude of the masked tSZ power spectrum, particularly on the large angular scales.
+
+% Before comparing the power spectra, we quantify how the feedback prescription changes the cluster population selected for masking. Figure~\ref{fig:flamingo_feedback_cnc} shows the resulting binned CNC distribution. Different astrophysical prescription leads to different total number of selected clusters to be masked. For the $f_{\rm gas}$ series, stronger AGN feedback reduces the number of selected clusters. The resolved number of clusters obtained from Jet runs are also lower than fiducial. Most of the variation occurs in the lowest-$q_{\rm map}$ bin and at $z\lesssim0.4$, where clusters lie closest to the selection boundary and are therefore most readily shifted across the threshold. Consequently, the masking selection is itself sensitive to the assumed feedback prescription.
+
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=\columnwidth]{figs/l1_m9_cnc_binned_Nq_Nz_qgt5_feedback_qfrommap.pdf}
+%     \caption{\label{fig:flamingo_feedback_cnc}%
+%     Cluster number counts for the fiducial FLAMINGO L1\_m9 simulation and
+%     the eight astrophysical variants. The map-based detection significance
+%     is measured independently from each variant's Compton-$y$ map.
+%     \textit{Upper panel:} counts in five logarithmic bins over
+%     $5<q_{\rm map}<40$, marginalized over redshift. \textit{Lower panel:}
+%     counts in ten linear bins over $0.005<z<1$, marginalized over
+%     $q_{\rm map}$. Grouped bars show the different feedback prescriptions,
+%     and the legend gives the total number of clusters in the common
+%     $(q_{\rm map},z)$ range. The fiducial model is highlighted in black.}
+% \end{figure}
+
+% Figure~\ref{fig:flamingo_feedback_ps} compares the total and masked tSZ power spectra for the fiducial model and the eight astrophysics variations. On large angular scales, the differences between the models remain percent-level even after the resolved clusters are removed, indicating that the large-scale tSZ signal for the unresolved clusters after masking is still weakly sensitive to the feedback variations considered here. On small angular scales, the suppression relative to the fiducial model is similar for the total and masked spectra, because both are dominated by the same lower-mass halo population on these scales. However, the statistical constraining power changes significantly after masking due to the suppression of the one-halo trispectrum. Consequently, even percent-level differences between feedback models can become statistically significant in the masked power spectrum, whereas the same differences in the total tSZ power spectrum are largely obscured by the much larger trispectrum-induced covariance.
+
+% We next examine whether this feedback response depends on the masking thresholds on large scales. Figure~\ref{fig:flamingo_feedback_ratio_vs_q} shows the ratio of each astrophysical variation to the fiducial power spectrum for several values $ q_{\rm cat}$ at $\ell<1000$. The scale and threshold dependences differ across the feedback prescriptions, providing a qualitative diagnostic of how different feedback mechanisms redistribute gas and thermal pressure and affect the shapes of the tSZ power spectrum.
+
+% The thermal-AGN variations (the $f_{\rm gas} \pm N\sigma$ series) show a scale-dependent response: models calibrated to lower cluster gas fractions enhance the power at low multipoles while suppressing it at high multipoles. This response also slightly depends on the masking threshold. As $q_{\rm cat}$ is lowered, the low-$\ell$ enhancement becomes stronger, particularly for the $f_{\rm gas}-4\sigma$ and $f_{\rm gas}-8\sigma$ models. The high-$\ell$ suppression is consistent with stronger AGN feedback reducing the gas density and thermal pressure in halo interiors and displacing gas to larger radii. The low-$\ell$ enhancement likely reflects both the extended pressure distribution and the feedback dependence of the masking cluster selection. For those halos contributing to the tSZ power spectra, the gravitational potential makes it difficult for feedback to unbind the gas completely, so a larger fraction of the displaced gas remains at large radii and continues to contribute to the large-scale pressure field. At the same time, stronger feedback lowers the integrated Compton-$y$ signal at the cluster interior and hence lowers $q_{\rm map}$, allowing some clusters that would be masked in the fiducial model to remain in the unresolved map. This selection effect can further enhance the masked low-$\ell$ signal. Note that previous FLAMINGO studies similarly find that stronger feedback suppresses the integrated Compton-$y$ signal within $R_{500c}$, while boost the large-scale bias-weighted pressure \citep{Braspenning2024}. At high redshift, it can also enhance the signal integrated within $5R_{\rm 500c}$, where the correlated two-halo gas contributes \citep{Salcido2026}. 
+
+% The $M_*-1\sigma$ variation exhibits a different response: it produces an enhancement of a few percent, with weak dependence on scale and masking threshold. Shifting the SMF calibration to lower stellar masses requires stronger feedback, which suppresses the conversion of cooling gas into stars by reheating, allowing a larger fraction of the baryons to remain in the diffused ICM. This provides a plausible explanation of the enhancement of the tSZ power spectrum at large scales. This interpretation is also reinforced by the increase in resolved number of clusters compared to fiducial model shown in Figure~\ref{fig:flamingo_feedback_cnc}. More clusters above threshold would, in principle, suppress the residual spectrum, so the observed few-percent enhancement cannot be a selection effect. Finally, the combined $M_*-1\sigma, f_{\rm gas}-4\sigma$ model exhibits both a scale-independent enhancement and a low-$\ell$ enhancement response associated with stronger AGN-driven gas redistribution.
+
+% Turning to the jet model, the fiducial Jet model produces a suppression relative to the fiducial tSZ power spectrum over the full multipole change, with weak dependence on the masking threshold. This suppression is particularly notable given that the Jet model yields fewer clusters above the masking threshold than the fiducial simulation, which implies that the observed suppression is instead driven by an intrinsic modification of the pressure distribution. Although the thermal and kinetic AGN models reproduce similar SMF and gas fractions, they therefore generate different pressure profiles, leading to a different observed CNC and tSZ power spectrum than the fiducial. The Jet $f_{\rm gas}-4\sigma$ model shows qualitatively similar scale dependence to the thermal $f_{\rm gas}-4\sigma$ model. The persistence of the low-$\ell$ enhancement may indicate that redistribution of thermal pressure to larger scales is the dominant factor of this behavior. Together, these results show that matching the same calibration observables does not uniquely determine the tSZ power spectrum, and the tSZ power spectrum is also sensitive both to the effective strength of feedback and the way energy coupled to the gas particles.
+
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=\textwidth]{figs/l1_m9_all_feedback_ratio_vs_q_binned_18_qfrommap.pdf}
+%     \caption{\label{fig:flamingo_feedback_ratio_vs_q}%
+%     Ratios of the tSZ power spectra for each non-fiducial FLAMINGO L1\_m9
+%     astrophysical variant to the fiducial spectrum under the same sky cut:
+%     full sky, $q>20$, $q>10$, and $q>5$. Spectra are measured in 18
+%     inclusive \textit{Planck}-style multipole bins. Shaded bands around
+%     unity show the theoretical $1\sigma$ relative uncertainties,
+%     $\sigma_D/D_\ell^{\mathrm{fid}}$, for the full-sky and $q>5$ cases.
+%     For the gas-poor and Jet models, the high-$\ell$ ratios separate as the
+%     mask deepens, while the low-$\ell$ ratios increase above unity.}
+% \end{figure*}
+
+%==============================================================================
+\section{Discussion and conclusions}
+\label{sec:discussion}
+%==============================================================================
+We have developed and tested a self-consistent framework for joint cluster
+number counts and masked tSZ power spectrum analysis. Clusters detected above a signal-to-noise threshold, $q_{\rm cat}$, enter the CNC likelihood and are masked from the Compton-$y$ map, while the residual unresolved tSZ field provides the power spectrum constraint. The pipeline was first validated on \textit{Planck}-like painted mocks generated from the halo model. We subsequently applied the framework to multifrequency mock observations with FLAMINGO hydrodynamical simulations to investigate the sensitivity of CNC and the masked power spectrum to the foreground and different astrophysical models.
+
+The main conclusions of this study are as follows.
+\begin{itemize}
+    \item Masking resolved clusters reduces the non-Gaussianity of the tSZ bandpowers at low multipoles, improving the detection significance of the tSZ power spectrum. The total tSZ power spectrum is highly skewed at low multipoles, and the variance is dominated by the one-halo trispectrum due to the Poisson sampling of the rare, massive halos. The masked power spectrum is sourced by a more numerous population of lower-mass halos and the bandpower
+    distribution becomes approximately Gaussian in every bin, and the one-halo trispectrum term is significantly suppressed. In addition, the CNC and the total tSZ power spectrum are sourced from a similar halo population, whereas the masked tSZ power spectrum is sensitive to less massive halos. The CNC and masked power spectrum therefore probe more distinct and complementary halo populations.
+
+    \item The binned CNC alone already provides tight cosmological constraints by retaining the redshift and signal-to-noise information of the resolved cluster population. In the signal-only synthetic analysis, the masked tSZ power spectrum is substantially more constraining than the full-sky spectrum and yields even tighter cosmological constraints than the binned CNC. Combining the masked spectrum with CNC further improves the constraints relative to CNC alone, whereas adding the full-sky spectrum provides only a modest gain in constraining power.
+
+    \item Residual foreground contamination changes this conclusion. When the residual CIB, IR, and RS amplitudes are allowed to vary, foreground marginalization significantly degrades the cosmological constraints from both the total and masked tSZ power spectra. Masking then improves primarily the determination of the foreground amplitudes rather than the cosmological parameters. This arises because in our simplified assumption, masking suppresses the tSZ signal while leaving the assumed foreground residuals unchanged, and also partly because of the masked tSZ power spectrum is more degenerate in shape with the foreground templates. In the joint analysis between CNC and masked tSZ power spectrum, CNC constrains the cosmological parameters independently of the map-level foregrounds, thereby breaking the foreground--cosmology degeneracy and improving the determination of the residual foreground amplitudes, while the cosmological constraints remain dominated by CNC.
+    
+    \item The FLAMINGO multifrequency mocks show that foreground contamination also affects how both observables are extracted. Cluster-correlated CIB emission produces a noticeable change in the cluster counts recovered with the standard iterative matched filter, whereas the spectrally constrained filter is substantially more stable and is therefore adopted to construct the cluster masks. Progressive masking preferentially removes large-scale tSZ power, consistent with the halo-model picture inferred from the synthetic analysis. For the reconstructed Compton-$y$ field using HILC, masking suppresses the true tSZ signal more strongly than CIB residuals, increasing their relative importance. Additional HILC deprojection constraints can suppress CIB residuals further at the cost of increasing the variance, revealing a trade-off between foreground removal and statistical precision.
+    
+    \item At fixed cosmology, the FLAMINGO astrophysical variations produce detectable changes in both the cluster counts and the reconstructed masked tSZ power spectrum. The $f_{\rm gas}-8\sigma$ model produces fewer detected clusters and a scale-dependent power spectrum response, with enhanced large-scale power and suppression toward higher multipoles after masking. The $M_\star-1\sigma$ model instead produces a modest increase in the cluster counts and a few-percent large-scale enhancement in the no-deprojection and CIB-deprojected spectra. Masking suppresses the trispectrum error, so these noiseless differences are more significant than on the unmasked sky. In the HILC reconstructions, the foreground residual is in several cases comparable to or larger than the statistical uncertainty. Foreground contamination can therefore become a limiting systematic when the reconstructed spectrum is used to distinguish feedback models, and that distinction requires accurate modelling of the foreground residuals.
+\end{itemize}
+
+Several limitations should be kept in mind when interpreting these results. The cosmological inference is performed on deliberately controlled synthetic realizations, in which the halo population is generated without spatial clustering and the residual CIB, infrared-source, and radio-source components are modelled as Gaussian random fields with fixed power-spectrum templates. Our results show that the cosmological information recovered after foreground residual amplitude marginalization is sensitive to the shapes of foreground residuals. In a realistic analysis, the shapes of foreground residuals will depend on the component-separation procedure and can themselves change after cluster masking. A quantitative application to observations will require the foreground modelling and component-separation response to be propagated consistently through the joint analysis. The FLAMINGO analysis provides a more realistic complementary test by extracting both the cluster catalogue and the reconstructed Compton-$y$ field directly from spatially correlated multifrequency mock skies. These results nevertheless remain specific to the simulated astrophysical and foreground prescriptions considered within FLAMINGO framework, while applications to real data will involve additional observational and component-separation complexity.
+
+To our knowledge, this is the first explicit demonstration of a joint CNC and masked tSZ power spectrum analysis based entirely on tSZ observables. It is also the first application of cluster masking to the FLAMINGO simulations, enabling the unresolved tSZ power spectrum and its response to different astrophysical prescriptions to be studied directly in large-volume hydrodynamical simulations. Although the analysis relies on synthetic data and simulations under simplified assumptions, it establishes a foundation for future joint analyses, clarifies the statistical properties and physical origin of the unresolved tSZ signal, and identifies the main modelling challenges that must be addressed before applying the framework to real survey data.
+
+We conclude that a joint analysis of CNC and the masked tSZ power spectrum provides a promising way towards extracting complete information from the Compton-$y$ maps. Its practical implementation will require an end-to-end treatment of component separation, cluster detection and masking, and astrophysical modelling. These requirements can be tested with existing hydrodynamical simulations and \textit{Planck} data, and will remain central to applications with future CMB surveys.
+
+
+% There are several limitations of the present analysis that should be kept in mind. The signal-only synthetic analysis is intentionally idealized and not representative of a realistic tSZ analysis, for which the residual foreground contamination is unavoidable. In addition, in the synthetic analysis with foreground residuals, the residual foreground templates are assumed unchanged after cluster masking. As emphasized by \citet{Rotti_2021}, cluster masking can alter both the tSZ signal and the residual foreground content, including the tSZ--CIB degeneracy once the brightest clusters are removed. A survey-realistic implementation would require the component-separation procedure to be repeated on the masked multifrequency map. Moreover, the FLAMINGO tests introduce further idealizations. The hydrodynamical maps are analyzed as pure tSZ signal and do not include correlated foreground emission. In addition, the resolved cluster catalogue is constructed from the pre-computed FLAMINGO halo catalogues rather than a cluster-detection pipeline. The signal-to-noise ratio is evaluated at the known cluster positions using the measured $Y_{500\mathrm{c}}$ and an assumed MMF noise model. The analysis therefore does not capture the effects of correlated foregrounds or profile mismatch, or instrumental systematics in map-making and cluster detection.
+
+% To our knowledge, this is the first explicit demonstration of a joint CNC and masked tSZ power spectrum analysis based entirely on tSZ observables. It is also the first application of cluster masking to the FLAMINGO tSZ maps, allowing the shape of the unresolved tSZ power spectrum and its response to different astrophysical variations to be studied in hydrodynamical simulations. Although these demonstrations rely on synthetic data and simplified assumptions, the results establish a foundation for future joint analyses, clarify the physical statistical properties of the unresolved tSZ signal, and identify the principal modelling challenges that must be addressed before the framework can be applied to real survey data.
+
+% We conclude that a joint analysis of CNC and the masked tSZ power spectrum provides a promising way towards extracting complete information from the Compton-$y$ maps. Its practical implementation will require an end-to-end treatment of component separation, cluster detection and masking, and astrophysical modelling. These requirements can be tested with existing hydrodynamical simulations and \textit{Planck} data, and will remain central to applications with future CMB surveys.
+
+%==============================================================================
+\begin{acknowledgments}
+We thank Andy Nilipour, Boryana Hadzhiyska, Fiona McCarthy, and Tianyi Yang for helpful discussions and assistance with the FLAMINGO data products. LX acknowledges the support of China Scholarship Council Cambridge Scholarship (grant number 202408060222). ÍZ and AC acknowledge support from the STFC (grant numbers ST/W000977/1, ST/X006387/1 and UKRI1164). We acknowledge the Virgo Consortium for making their simulation data available. The FLAMINGO simulations were performed using the Durham Memory Intensive system managed by the Institute for Computational Cosmology on behalf of the STFC DiRAC facility (www.dirac.ac.uk).
+
+Generative artificial intelligence tools and coding assistants, including ChatGPT and Codex, Claude, Grok, and Cursor, were used to assist with software implementation and debugging, inspection of numerical outputs, and language editing of the manuscript. AI-assisted code and outputs were evaluated through a combination of automated tests, numerical consistency checks, cross-model review, and author oversight. The research design, scientific methodology, interpretation of the results, and conclusions were determined by the authors, who take responsibility for the content of the manuscript.
+\end{acknowledgments}
+%==============================================================================
+\appendix
+\section{Validation of the synthetic data}
+\label{app:synthetic_validation}
+We validate the map-painting and bandpower-estimation pipeline by comparing the distribution of bandpowers measured from the $1000$ signal-only synthetic realizations described in Sec.~\ref{subsec:syntheticdata} with the corresponding halo-model prediction. Since the halo positions are drawn independently and uniformly over the sky, the theoretical calculation contains only the one-halo contribution. We use fixed fiducial cosmological and scaling-relation parameters, halo mass and redshift limits, and masking threshold in the painted maps. Figure~\ref{fig:synthetic_fullsky_histograms} shows the full-sky bandpower distributions. The low-multipole distributions are highly non-Gaussian and positively skewed because they are dominated by rare massive halos. Figure~\ref{fig:synthetic_masked_histograms} shows the distribution of masked bandpowers with $q_{\rm cat}=5$, and the bandpower distributions are approximately Gaussian. In both cases, the empirical mean agree well with the theoretical prediction. Figure~\ref{fig:synthetic_covariance_slices} compares the covariance between the empirical bandpowers and theoretical predictions. The covariance estimated from the simulations agrees well with the theoretical prediction for the masked bandpowers and for the full-sky bandpowers at high multipoles. The agreement is poorer for the full-sky spectrum at low multipoles, because the sampling variance of the empirical covariance depends on the connected four-point moment of the bandpower distribution for a finite number of realizations, and at low multipoles, the fourth connected moment is much larger than the square of the variance due to the heavy tails.
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/jxpaint_histogram_fullsky_signal_only.pdf}
+    \caption{\label{fig:synthetic_fullsky_histograms}%
+    Distributions of the full-sky tSZ bandpowers measured from $1000$
+    signal-only \texttt{JXPaint} realizations. Blue histograms show the
+    empirical distributions; red solid curves show Gaussian distributions
+    with the halo-model mean and the standard deviation predicted by the
+    Gaussian plus one-halo-trispectrum covariance. Red and black dashed
+    vertical lines mark the theoretical and empirical means, respectively.
+    The strong positive skewness at low multipoles is generated by rare
+    massive halos, so the Gaussian curves summarize only the first two
+    theoretical moments in these bins.}
+\end{figure*}
+
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/jxpaint_histogram_masked_signal_only.pdf}
+    \caption{\label{fig:synthetic_masked_histograms}%
+    Distributions of the masked tSZ bandpowers measured from the same $1000$
+    signal-only realizations as in
+    Fig.~\ref{fig:synthetic_fullsky_histograms}. Clusters with
+    $q_{\rm obs}\geq5$ are removed using apodized masks, and the bandpowers
+    are measured with the pseudo-$C_\ell$ estimator. Curves and vertical
+    lines follow the conventions of
+    Fig.~\ref{fig:synthetic_fullsky_histograms}; the theoretical calculation
+    uses the same selection and the mean effective sky fraction of the
+    $1000$ masks. Masking suppresses the rare-halo tail, bringing both the
+    means and widths into close agreement with the matched theoretical
+    prediction.}
+\end{figure*}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/jxpaint_covariance_slices_signal_only.pdf}
+    \caption{\label{fig:synthetic_covariance_slices}%
+    Empirical and theoretical covariance matrices of the signal-only tSZ
+    bandpowers. \textit{Left panel:} full-sky bandpowers. \textit{Right
+    panel:} bandpowers after masking clusters with $q_{\rm obs}\geq5$.
+    Each grey curve shows one row of the empirical covariance measured from
+    $1000$ realizations, and each red curve shows the corresponding Gaussian
+    plus one-halo-trispectrum prediction. Black and red points mark the
+    empirical and theoretical diagonal elements. The plotted quantity is the
+    absolute covariance after converting from $D_\ell$ to $C_\ell$ and
+    multiplying each bandpower axis by $10^{12}$.}
+\end{figure*}
+
+% \section{Variance of Number Counts and tSZ power spectrum on different lightcones}
+% \label{sec:l2p8_lightcone_variance}
+% We assess the variance of the simulated cluster counts and tSZ bandpowers for FLAMINGO simulations using different lightcone realizations. The L1\_m9 simulations only provides two lightcones, which is too small to characterize the variance reliably. We use the eight lightcones from L2p8\_m9 simulations, allows the variance between different realizations to be probed. However, the eight lightcones are eight observer positions in a single realization instead of eight independent realizations. The scatter among the eight lightcones is therefore correlated and smaller than the variance of eight independent realizations. 
+
+% We use an aperture selection method to build the cluster catalogue in this Appendix. Given the lightcone maps and catalogues of each observer, we measure the cylindrical Compton-$y$ parameter, $Y_{500}^{\rm cyl}$, empirically on the map at the known sky position of each catalogue halo by integrating the signal within a circular aperture of this radius of $\theta_{500}$. The MMF noise $\sigma_{Y_{500}}(\theta_{500})$ is derived from the same sky-averaged \textit{Planck}-like MMF noise curve used in the synthetic-data analysis. The signal-to-noise of the clusters can be estimated from $q=Y_{500}^{\rm cyl}/\sigma_{Y_{500}}(\theta_{500})$. This procedure nevertheless neglects uncertainties associated with cluster finding procedure, including variations in pressure-profile shape, and MMF-related selection and measurement systematics. The analytic bandpower uncertainties is computed from Eq.~\eqref{eq:masked_bandpower_covariance} at the best-fitting $A_{\mathrm{SZ}}$ obtained by applying the one-parameter fit on the unmasked L2p8\_m9 bandpowers. 
+
+% We apply the same analysis procedure described in Sec.~\ref{sec:methods_flamingo} on the L2p8\_m9 catalogues and maps. The analytic bandpower uncertainties is computed from Eq.~\eqref{eq:masked_bandpower_covariance} at the best-fitting $A_{\mathrm{SZ}}$ obtained by applying the one-parameter full-sky fit described in Sec.~\ref{sec:flamingo_results} to the L2p8\_m9 bandpowers. 
+
+
+% Having assembled the lightcone halo catalogues and Compton-$y$ maps, we next assign a signal-to-noise ratio to each halo for cluster masking. We measure the cylindrical Compton-$y$ parameter, $Y_{500}^{\rm cyl}$, empirically on the map at the known sky position of each catalogue halo. We integrate the signal within a circular aperture of this radius of $\theta_{500}$. The MMF noise $\sigma_{Y_{500}}(\theta_{500})$ is derived from the same sky-averaged \textit{Planck}-like MMF noise curve used in the synthetic-data analysis. The empirical significance is then $q=Y_{500}^{\rm cyl}/\sigma_{Y_{500}}(\theta_{500})$. This procedure nevertheless neglects uncertainties associated with cluster finding procedure, including variations in pressure-profile shape, and MMF-related selection and measurement systematics. 
+
+% Figure~\ref{fig:l2p8_cnc_consistency} compares the binned CNC for the eight lightcone realizations and their empirical scatter. We also plot the ratio of the empirical standard deviation to the Poisson expectation, $\sigma/\sqrt{\langle N\rangle}$, which equals to unity if the CNC fluctuations follow Poisson statistics. The measured scatter is broadly consistent with the Poisson expectation across most bins, but is enhanced at low redshift. 
+
+% Figure~\ref{fig:l2p8_ps_consistency} shows the corresponding comparison for the total and masked tSZ bandpowers. Qualitatively, the total tSZ bandpowers exhibit large scatter across different lightcones at low multipoles, and this scatter is strongly reduced after masking clusters with $q_{\rm map}>5$, as expected from the removal of rare, massive haloes. However, the empirical variance is lower than the analytical prediction. By contrast, for the masked bandpowers, the empirical scatter exceeds the analytic prediction in low multipoles. These discrepancies may indicate limitations in the analytic covariance model, but they may also arise from the sampling uncertainty associated with estimating a variance from only eight lightcone realizations. 
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=0.48\textwidth]{figs/l2p8_lightcone_consistency_cnc_z.pdf}
+%     \hfill
+%     \includegraphics[width=0.48\textwidth]{figs/l2p8_lightcone_consistency_cnc_q.pdf}
+%     \caption{\label{fig:l2p8_cnc_consistency}%
+%     Cluster-number-count consistency across the eight FLAMINGO L2p8\_m9
+%     lightcones. \textit{Left panel:} redshift distribution over
+%     $0.005<z<1$ for clusters with $5<q_{\rm map}<40$. \textit{Right panel:}
+%     signal-to-noise distribution over the same redshift range. Faint bars
+%     show individual lightcones, and black points show the ensemble mean with
+%     the $\pm1\sigma$ inter-lightcone scatter. Lower panels show
+%     $\sigma/\sqrt{\langle N\rangle}$, with unity corresponding to Poisson
+%     scatter. The variance is broadly Poisson-like except in the lowest
+%     redshift bins.}
+% \end{figure*}
+
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=0.48\textwidth]{figs/l2p8_lightcone_consistency_fullsky.pdf}
+%     \hfill
+%     \includegraphics[width=0.48\textwidth]{figs/l2p8_lightcone_consistency_masked.pdf}
+%     \caption{\label{fig:l2p8_ps_consistency}%
+%     tSZ bandpower consistency across the eight FLAMINGO L2p8\_m9
+%     lightcones, measured in 18 \textit{Planck}-style multipole bins.
+%     \textit{Left panel:} full-sky spectra. \textit{Right panel:} spectra
+%     after masking clusters with $q_{\rm map}>5$. Faint curves show individual
+%     lightcones, and black curves show the ensemble means. Grey and blue bands
+%     in the upper subpanels denote the empirical inter-lightcone
+%     $\pm1\sigma$ scatter and the $\pm1\sigma$ prediction from the Gaussian
+%     plus trispectrum covariance at the L2p8\_m9 best-fit
+%     $A_{\mathrm{SZ}}=-4.083$. Lower subpanels show
+%     $\sigma_{\rm emp}/\sigma_{\rm theory}$; unity denotes agreement.
+%     Masking strongly suppresses the empirical scatter, although the analytic
+%     covariance agrees only qualitatively at low multipoles.}
+% \end{figure*}
+
+% \section{Convergence of masking radius on FLAMINGO maps}
+% \label{sec:flamingo_masking_radius}
+% Throughout this work, resolved clusters are masked from the map with circular holes of radius $\theta_{\rm max}=\max\!\left(4\theta_{500},\,2\theta_{\rm FWHM}\right)$, with $0.25^\circ$ cosine apodization. On the synthetic maps, this corresponds to the truncation radius of the halo painting. Here, we test whether this masking radius is sufficient for the hydrodynamical FLAMINGO maps.
+
+% We perform the test using the fiducial L1\_m9 Compton-$y$ map. For each fixed detection threshold $q_{\rm map}$, we mask all halos above the threshold with circular holes of radius $\theta_{\rm mask}=R\,\theta_{500}$, varying $R$ from $0$ to $8$. The power spectrum of the masked map is computed with the same \texttt{NaMaster} MASTER estimator and $0.25^\circ$ cosine apodization introduced in Sec.~\ref{subsec:syntheticdata}.
+
+% The masked power decreases rapidly as the masking radius is increased and subsequently approaches a plateau. For $q_{\rm map}>5$, the spectra are already close to convergence by $R\simeq2$--$3$ over the multipole range shown. Increasing the radius from $R=4$ to $R=8$ changes the bandpowers by less than approximately $4\%$ at $\ell\simeq100$, $1.5\%$ at $\ell\simeq500$, and $0.5\%$ at $\ell\simeq2500$. The dependence is weaker for the higher thresholds $q_{\rm map}>10$ and $q_{\rm map}>20$. These results show that the adopted radius of $4\theta_{500}$ is sufficient for the FLAMINGO analysis.
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=\textwidth]{figs/l1_m9_masking_radius_null_test_qfrommap.pdf}
+%     \caption{\label{fig:flamingo_masking_radius_convergence}%
+%     Convergence of the masking radius for the fiducial FLAMINGO L1\_m9
+%     lightcone. Panels show the ratio
+%     $D_\ell(R)/D_\ell^{\rm unmasked}$ as a function of
+%     $R=\theta_{\rm mask}/\theta_{500}$ for the map-based thresholds
+%     $q_{\rm map}>20$, $10$, and $5$. Coloured curves correspond to five
+%     logarithmic multipole bins centred at $\ell\simeq101$, $224$, $498$,
+%     $1108$, and $2466$; vertical dashed lines mark the production choice
+%     $R=4$. The spectra approach a plateau by $R\simeq2$--$3$, confirming
+%     that $R=4$ is sufficient over the multipole range considered.}
+% \end{figure*}
+
+% \section{Deconstruction of tSZ power spectrum from FLAMINGO lightcones}
+
+\bibliographystyle{apsrev4-2}
+\bibliography{references}
+
+\end{document}
+
+
+
+

@@ -6,5 +6,13 @@ logs/
 *.egg-info/
 __pycache__/
 
-# Draft LaTeX lives outside this repo
-paper/
+# LaTeX build products for the in-prep manuscript
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+paper/*.toc
