@@ -9,11 +9,13 @@ _SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(_SCRIPTS))
 from hilc_prescriptions import (  # noqa: E402
     DEPROJ_CIB,
+    DEPROJ_CIB_DBETA,
     DEPROJ_MOMENTS,
     DEPROJ_NONE,
     PRESCRIPTIONS,
     cache_stale,
     catalogue_path,
+    cluster_mask_apo,
     cluster_mask_binary,
     cmb_path,
     hilc_output_dir,
@@ -87,8 +89,9 @@ def test_written_yaml_uses_matching_mask_and_noise_split(tmp_path, monkeypatch):
         y1 = hpmod.write_hilc_yaml(name, masked=True, real=1, deproj=DEPROJ_CIB)
         y2 = hpmod.write_hilc_yaml(name, masked=True, real=2, deproj=DEPROJ_CIB)
         t1, t2 = y1.read_text(), y2.read_text()
-        mask = str(cluster_mask_binary(name))
+        mask = str(cluster_mask_apo(name))
         assert mask in t1 and mask in t2
+        assert "_c2_025deg" in mask
         assert "/szifi_immf_q5_cluster_mask_nside2048.fits" not in t1
         assert str(ilc_input_dir(name, 1)) in t1
         assert str(ilc_input_dir(name, 2)) in t2
@@ -96,6 +99,7 @@ def test_written_yaml_uses_matching_mask_and_noise_split(tmp_path, monkeypatch):
         assert "ILC_deproj_comps: [CIB]" in t1
         assert "TopHatHarmonic" in t1
         assert "sht_backend: ducc0" in t1
+        assert "ilc_backend: numpy" in t1
         assert yaml_path("L1_m9", masked=False, real=1).name == "hilc_y_flamingo_homog.yml"
 
 
@@ -134,8 +138,10 @@ def test_l1_m9_written_yaml_uses_fiducial_mask(tmp_path, monkeypatch):
 
     monkeypatch.setattr(hpmod, "REPO", tmp_path)
     y = hpmod.write_hilc_yaml("L1_m9", masked=True, real=1, deproj=DEPROJ_NONE)
-    mask = str(cluster_mask_binary("L1_m9"))
-    assert mask in y.read_text()
+    mask = str(cluster_mask_apo("L1_m9"))
+    t = y.read_text()
+    assert mask in t
+    assert str(cluster_mask_binary("L1_m9")) not in t
 
 
 def test_plot_script_uses_each_catalogue():
@@ -144,3 +150,33 @@ def test_plot_script_uses_each_catalogue():
     assert "cluster_mask_apo" in src
     assert "ALL_DEPROJ" in src
     assert "components/tsz/test" not in src
+
+
+def test_fidmask_yaml_keeps_variant_inputs_and_fiducial_mask(tmp_path, monkeypatch):
+    import hilc_prescriptions as hpmod
+
+    monkeypatch.setattr(hpmod, "REPO", tmp_path)
+    y = hpmod.write_hilc_yaml(
+        "Mstar-1sigma",
+        masked=True,
+        real=1,
+        deproj=DEPROJ_CIB_DBETA,
+        mask_name="L1_m9",
+        extra_tag=hpmod.FIDMASK_TAG,
+    )
+    t = y.read_text()
+    assert str(cluster_mask_apo("L1_m9")) in t
+    assert str(cluster_mask_apo("Mstar-1sigma")) not in t
+    assert str(cluster_mask_binary("L1_m9")) not in t
+    assert "fidmask" in t
+    assert str(ilc_input_dir("Mstar-1sigma", 1)) in t
+    yp = hpmod.hilc_ymap(
+        "Mstar-1sigma", masked=True, real=1, deproj=DEPROJ_CIB_DBETA, extra_tag="fidmask"
+    )
+    default = hpmod.hilc_output_dir(
+        "Mstar-1sigma", masked=True, real=1, deproj=DEPROJ_CIB_DBETA
+    )
+    assert "fidmask" in str(yp)
+    assert default not in yp.parents
+    assert "ilc_backend: numpy" in t
+    assert "sht_backend: ducc0" in t

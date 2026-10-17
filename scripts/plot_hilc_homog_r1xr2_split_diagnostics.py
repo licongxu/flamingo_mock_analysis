@@ -181,9 +181,11 @@ def hilc_weights(wdir: Path, wtag: str, lmax: int) -> np.ndarray:
     ell_F[-1] = ell_F[-2]
     w_ell = np.zeros((len(FREQS), lmax + 1))
     for j in range(n_scales):
-        use = [ell_F[j] <= ell_B[a] for a in range(len(FREQS))]
         wfile = wdir / f"flamingo_weightvector_scale{j}_component_tSZ{wtag}.txt"
         wraw = np.atleast_1d(np.loadtxt(wfile)).ravel()
+        use = [ell_F[j] <= ell_B[a] for a in range(len(FREQS))]
+        if wraw.size == len(FREQS):
+            use = [True] * len(FREQS)
         sl = filts[j] > 0
         count = 0
         for a, ok in enumerate(use):
