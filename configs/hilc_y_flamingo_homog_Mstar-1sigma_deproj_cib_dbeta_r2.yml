@@ -5,7 +5,7 @@ output_prefix: flamingo_
 output_suffix: _hilc_y_homog_fullsky_r2_deproj_CIB_CIB_dbeta_Mstar-1sigma
 save_weights: 'yes'
 save_as: fits
-param_dict_file: /scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/input/fg_SEDs_default_params.yml
+param_dict_file: /scratch/scratch-lxu/flamingo_mock_analysis/configs/fg_SEDs_flamingo_yang26.yml
 ELLMAX: 4096
 taper_width: 200
 N_side: 2048

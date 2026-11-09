@@ -1,0 +1,38 @@
+# HILC y on L1_m9 homog skies (CIB) with q>5 cluster holes. Independent white-noise r2.
+work_in_healpix: 'yes'
+output_dir: /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_homog_q5masked_r2_deproj_CIB_planckbin/
+output_prefix: flamingo_
+output_suffix: _hilc_y_homog_q5masked_r2_deproj_CIB_planckbin
+save_weights: 'yes'
+save_as: fits
+param_dict_file: /scratch/scratch-lxu/flamingo_mock_analysis/configs/fg_SEDs_flamingo_yang26.yml
+ELLMAX: 4096
+taper_width: 200
+N_side: 2048
+N_freqs: 6
+bandpass_type: DeltaBandpasses
+freqs_delta_ghz: [100.0, 143.0, 353.0, 217.0, 545.0, 857.0]
+freq_map_files: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2_q5prep/sky_CMB_tSZ_CIB_homog_100GHz_nside2048_K_beam10_monosub.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2_q5prep/sky_CMB_tSZ_CIB_homog_143GHz_nside2048_K_beam10_monosub.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2_q5prep/sky_CMB_tSZ_CIB_homog_353GHz_nside2048_K_beam10_monosub.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2_q5prep/sky_CMB_tSZ_CIB_homog_217GHz_nside2048_K_beam10_monosub.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2_q5prep/sky_CMB_tSZ_CIB_homog_545GHz_nside2048_K_beam10_monosub.fits,
+  /rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/inputs_nside2048_homog_r2_q5prep/sky_CMB_tSZ_CIB_homog_857GHz_nside2048_K_beam10_monosub.fits]
+beam_type: Gaussians
+beam_FWHM_arcmin: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+perform_ILC_at_beam: 10.0
+ILC_preserved_comp: tSZ
+N_deproj: 1
+ILC_deproj_comps: [CIB]
+N_maps_xcorr: 0
+mask_before_covariance_computation: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits,
+  0]
+mask_before_wavelet_computation: [/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/szifi_immf_q5_cluster_mask_c2_025deg_nside2048.fits,
+  0]
+wavelet_beam_criterion: 1.0e-6
+print_timing: 'true'
+ilc_backend: numpy
+sht_backend: ducc0
+wavelet_type: TopHatHarmonic
+BinSize: 50
+ell_bin_edges: [0, 9, 12, 16, 21, 27, 35, 46, 60, 78, 102, 133, 173, 224, 292, 380, 494, 642, 835, 1085, 1411, 4096]

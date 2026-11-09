@@ -25,7 +25,7 @@ from flamingo_mock.io import write_map
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
-from hilc_prescriptions import ALL_RUNS, ilc_input_dir, total_maps_dir
+from hilc_prescriptions import ALL_RUNS, FOLLOWUP_SKY_RUNS, ilc_input_dir, total_maps_dir
 
 NSIDE = 2048
 SEED_R2 = 1042  # r1 used 42; independent streams
@@ -62,7 +62,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--prescription",
-        choices=ALL_RUNS,
+        choices=ALL_RUNS + FOLLOWUP_SKY_RUNS,
         default="L1_m9",
         help="Beamed totals to pair with the shared r1/r2 white noise",
     )
