@@ -7,8 +7,8 @@
   components/cib/LS8/
   components/cib/test/           L2p8 demo (parked)
 
-Each folder has CIB_I_{217,353,545,857} (Jy/sr, symlink to the HDF5)
-and CIB_deltaT_{100,143,217,353,545,857} (uK_CMB).
+Each folder has CIB_I_{100,143} (Jy/sr FITS) plus CIB_I_{217,353,545,857}
+(Jy/sr, symlink to HDF5) and CIB_deltaT_{100,143,217,353,545,857} (uK_CMB).
 """
 from __future__ import annotations
 
@@ -23,9 +23,12 @@ PRESCRIPTIONS = ("L1_m9", "fgas-8sigma", "Mstar-1sigma", "LS8")
 
 CIB_NAMES = [
     *[f"CIB_deltaT_{nu}GHz_nside4096.fits" for nu in (100, 143, 217, 353, 545, 857)],
+    *[f"CIB_I_{nu}GHz_nside4096.fits" for nu in (100, 143)],
     *[f"CIB_I_{nu}GHz_nside4096.hdf5" for nu in (217, 353, 545, 857)],
 ]
-CIB_HDF5 = {
+CIB_FILES = {
+    100: "lensed_CIB_rot_BANDPASS_F100_three_params_same_rot.fits",
+    143: "lensed_CIB_rot_BANDPASS_F143_three_params_same_rot.fits",
     217: "lensed_CIB_rot_BANDPASS_F217_three_params_same_rot.hdf5",
     353: "lensed_CIB_rot_BANDPASS_F353_three_params_same_rot.hdf5",
     545: "lensed_CIB_rot_BANDPASS_F545_three_params_same_rot.hdf5",
@@ -60,7 +63,7 @@ def build_cib(run: str) -> None:
         data_dir=COMP / "L1_m9" / run,
         frequencies=PLANCK_FREQUENCIES_GHZ,
         nside=4096,
-        cib_files=dict(CIB_HDF5),
+        cib_files=dict(CIB_FILES),
     )
     out = CIB / run
     print(f"\n=== CIB {run} ===")

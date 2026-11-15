@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Full-sky homog iMMF with szifi_jax on GPU1; write catalogue + mollview.
+"""Full-sky homog iMMF with szifi_jax on GPU0; write catalogue + mollview.
 
 Reproduces figures/szifi_homog_immf_mollview.png (N=2364, q>=5, unmasked).
 Does not overwrite the original NumPy-szifi catalogue.
@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", "0.75")
 os.environ["XLA_FLAGS"] = ""

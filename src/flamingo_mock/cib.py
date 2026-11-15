@@ -1,6 +1,6 @@
 """CIB component: released bandpass maps + approximate maps at other frequencies.
 
-The released maps (217/353/545/857 GHz, bandpass-convolved, lensed) are
+The released maps (100/143/217/353/545/857 GHz when present, bandpass-convolved, lensed) are
 specific intensities in Jy/sr. Maps at other frequencies are approximated as
 in the notebooks:
 

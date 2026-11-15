@@ -18,7 +18,7 @@ WDIR_Q5 = Path("/rds/rds-lxu/flamingo/integrated_maps_synthetic/ilc/hilc_output_
 FIG = Path("/scratch/scratch-lxu/flamingo_mock_analysis/figures/hilc_homog_weights_fullsky_vs_q5masked.png")
 
 
-def hilc_weights(wdir: Path, lmax: int) -> np.ndarray:
+def hilc_weights(wdir: Path, lmax: int, wtag: str = "") -> np.ndarray:
     fwhm_ch = [BEAM_FWHM_ARCMIN[int(f)] for f in FREQS]
     ellbins = np.arange(0, lmax + 1, BINSIZE)
     n_scales = len(ellbins) - 1
@@ -36,9 +36,8 @@ def hilc_weights(wdir: Path, lmax: int) -> np.ndarray:
     w_ell = np.zeros((len(FREQS), lmax + 1))
     for j in range(n_scales):
         use = [ell_F[j] <= ell_B[a] for a in range(len(FREQS))]
-        wraw = np.atleast_1d(
-            np.loadtxt(wdir / f"flamingo_weightvector_scale{j}_component_tSZ.txt")
-        ).ravel()
+        wfile = wdir / f"flamingo_weightvector_scale{j}_component_tSZ{wtag}.txt"
+        wraw = np.atleast_1d(np.loadtxt(wfile)).ravel()
         sl = filts[j] > 0
         count = 0
         for a, ok in enumerate(use):
@@ -96,5 +95,53 @@ def main() -> None:
     print("wrote", out2)
 
 
+def plot_q5_schemes() -> None:
+    """Five deprojection schemes × three hydro runs, q>5 weights vs ℓ."""
+    import sys
+
+    _scripts = Path(__file__).resolve().parent
+    if str(_scripts) not in sys.path:
+        sys.path.insert(0, str(_scripts))
+    from pub_style import apply_pub_style, savefig
+    from hilc_prescriptions import ALL_DEPROJ, LABELS, hilc_output_dir
+
+    apply_pub_style()
+    runs = ("L1_m9", "Mstar-1sigma", "fgas-8sigma")
+    styles = {"L1_m9": "-", "Mstar-1sigma": "--", "fgas-8sigma": ":"}
+    colors = {"L1_m9": "#1a1a1a", "Mstar-1sigma": "#C44E00", "fgas-8sigma": "#0055A4"}
+    ell = np.arange(LMAX + 1)
+    fig, axes = plt.subplots(
+        5, 6, figsize=(13.2, 10.8), sharex=True, sharey=False, layout="constrained"
+    )
+    for i, deproj in enumerate(ALL_DEPROJ):
+        for j, freq in enumerate(FREQS):
+            ax = axes[i, j]
+            for name in runs:
+                wdir = hilc_output_dir(name, masked=True, real=1, deproj=deproj)
+                w = hilc_weights(wdir, LMAX, deproj.wtag)
+                ax.plot(
+                    ell,
+                    w[j],
+                    color=colors[name],
+                    ls=styles[name],
+                    lw=1.3,
+                    label=LABELS[name] if i == 0 and j == 0 else None,
+                )
+            ax.axhline(0.0, color="k", lw=0.5)
+            ax.set_xlim(2, ELL_MAX_PLOT)
+            ax.grid(False)
+            if i == 0:
+                ax.set_title(f"{freq} GHz", fontsize=11)
+            if j == 0:
+                ax.set_ylabel(deproj.label, fontsize=10)
+            if i == len(ALL_DEPROJ) - 1:
+                ax.set_xlabel(r"$\ell$")
+    fig.legend(loc="outside upper center", ncol=3, frameon=False, fontsize=10)
+    out = Path("/scratch/scratch-lxu/flamingo_mock_analysis/figures/l1_m9")
+    savefig(fig, "l1_m9_hilc_weights_q5_schemes", fig_dir=out)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     main()
+    plot_q5_schemes()

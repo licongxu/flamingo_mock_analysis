@@ -23,6 +23,9 @@ from matplotlib.patches import Patch
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
+from plot_hilc_recovered_residuals_deproj import COLORS as REC_COLORS
+from plot_hilc_recovered_residuals_deproj import MARKERS as REC_MARKERS
+from plot_hilc_truth_yy_ratio import _truth as truth_spec
 from pub_style import apply_pub_style, savefig
 
 from flamingo_mock.powerspectra import sigma_dl_cross_binned
@@ -212,6 +215,128 @@ def build_figure() -> plt.Figure:
         handles, labels, loc="outside upper center", ncol=3, frameon=False,
         fontsize=8.5, handler_map={tuple: HandlerTuple(ndivide=None, pad=0.12)},
         columnspacing=1.2, handletextpad=0.4, handlelength=2.3, labelspacing=0.35,
+    )
+    return fig
+
+
+RESIDUAL_SPECS = (
+    ("total", "nodeproj", "-"),
+    ("masked", "nodeproj", "--"),
+    ("masked", "deproj_cib", "--"),
+    ("masked", "deproj_cib_dbeta", "--"),
+    ("masked", "deproj_cib_dbeta_cmb", "-."),
+    ("masked", "deproj_moments", ":"),
+)
+FRAC_STEM = "l1_m9_hilc_feedback_fractional_fg_residual"
+
+
+def _truth_dl(run: str, kind: str) -> np.ndarray:
+    z = np.load(PS / f"{run}_truth_{kind}.npz")
+    return np.asarray(z["dl"], dtype=np.float64)
+
+
+def _band_colors(deproj: str, kind: str) -> tuple[str, str]:
+    """Full-sky no-deproj is grey; q>5 no-deproj keeps the recovered-plot blue."""
+    if deproj == "nodeproj" and kind == "total":
+        return LINE_TOT, BAND_TOT
+    if deproj == "nodeproj":
+        return REC_COLORS["nodeproj"], "#9ecae1"
+    color = REC_COLORS[deproj]
+    return color, color
+
+
+def _fill0(ax, ell, rel, line_color, band_color, zorder) -> None:
+    ax.fill_between(
+        ell, -rel, rel,
+        color=band_color, alpha=0.40, edgecolor=line_color, linewidth=0.9, zorder=zorder,
+    )
+
+
+def build_fractional_figure(
+    ylim: tuple[float, float] = (-0.8, 3.2),
+    subtract: str = "variant",
+) -> plt.Figure:
+    """(D_yy^var / D_yy^fid - 1) plus (D_rec - D_yy^var) / D_yy^fid, centred on 0.
+
+    Shaded bands are the fiducial HILC errors of that reconstruction, now
+    ±σ/D_ℓ^{yy,fid} so they share the axis denominator. σ² = σ_G² + σ_T².
+    """
+    apply_pub_style()
+    ell, dl_fid_tot, _, _ = truth_spec("L1_m9", "total")
+    _, dl_fid_q5, _, _ = truth_spec("L1_m9", "masked")
+    fid = {"total": dl_fid_tot, "masked": dl_fid_q5}
+    bands = (
+        ("nodeproj", "total", 1),
+        ("deproj_moments", "masked", 2),
+        ("deproj_cib_dbeta_cmb", "masked", 3),
+        ("deproj_cib_dbeta", "masked", 4),
+        ("deproj_cib", "masked", 5),
+        ("nodeproj", "masked", 6),
+    )
+
+    fig, axes = plt.subplots(
+        1, 2, figsize=(7.2, 3.6), sharex=True, sharey=True, layout="constrained",
+    )
+    fig.set_constrained_layout_pads(w_pad=0.02, h_pad=0.02, wspace=0.03, hspace=0.02)
+    for ax, run in zip(axes, VARIANTS):
+        yy_tot = _truth_dl(run, "total")
+        yy_q5 = _truth_dl(run, "masked")
+        yy = {"total": yy_tot, "masked": yy_q5}
+        for deproj, kind, zorder in bands:
+            line, band = _band_colors(deproj, kind)
+            _fill0(ax, ell, rel_band(deproj, kind, fid[kind]), line, band, zorder)
+        ax.axhline(0.0, color="k", lw=1.0, zorder=7)
+        ax.semilogx(
+            ell, yy_tot / dl_fid_tot - 1.0,
+            color="k", marker="o", ms=4.5, lw=2.2, zorder=11,
+        )
+        ax.semilogx(
+            ell, yy_q5 / dl_fid_q5 - 1.0,
+            color=LINE_Q5, marker="o", ms=4.5, lw=2.2, zorder=12,
+        )
+        for kind, deproj, ls in RESIDUAL_SPECS:
+            _, dl_rec = _p18(run, deproj, kind)
+            yy_sub = fid[kind] if subtract == "fiducial" else yy[kind]
+            frac = (dl_rec - yy_sub) / fid[kind]
+            ax.semilogx(
+                ell, frac, color=_band_colors(deproj, kind)[0],
+                marker=REC_MARKERS[deproj],
+                ms=3.6, lw=1.3, ls=ls, zorder=8,
+            )
+        ax.set_xlim(10.0, 959.5)
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+        ax.set_title(LABELS.get(run, run), fontsize=12)
+        ax.set_xlabel(r"$\ell$")
+        ax.grid(False)
+    if subtract == "fiducial":
+        axes[0].set_ylabel(r"$(D_\ell^{\mathrm{rec}}-D_\ell^{yy,\mathrm{fid}})/D_\ell^{yy,\mathrm{fid}}$")
+    else:
+        axes[0].set_ylabel(r"$\Delta D_\ell^{yy}/D_\ell^{yy,\mathrm{fid}}$")
+    handles = [
+        Line2D([0], [0], color="k", marker="o", lw=2.2, ms=5.0),
+        Line2D([0], [0], color=LINE_Q5, marker="o", lw=2.2, ms=5.0),
+        _handle(*_band_colors("nodeproj", "total"), "o", "-"),
+        _handle(*_band_colors("nodeproj", "masked"), "o", "--"),
+        _handle(REC_COLORS["deproj_cib"], REC_COLORS["deproj_cib"], "s", "--"),
+        _handle(REC_COLORS["deproj_cib_dbeta"], REC_COLORS["deproj_cib_dbeta"], "^", "--"),
+        _handle(REC_COLORS["deproj_cib_dbeta_cmb"], REC_COLORS["deproj_cib_dbeta_cmb"], "v", "-."),
+        _handle(REC_COLORS["deproj_moments"], REC_COLORS["deproj_moments"], "D", ":"),
+    ]
+    labels = [
+        r"Noiseless $y$, total",
+        r"Noiseless $y$, $q>5$",
+        r"FG residual, total, no deproj.",
+        r"FG residual, $q>5$, no deproj.",
+        r"FG residual, $q>5$, CIB",
+        r"FG residual, $q>5$, CIB+$\delta\beta$",
+        r"FG residual, $q>5$, CIB+$\delta\beta$+CMB",
+        r"FG residual, $q>5$, CIB+$\delta\beta$+$\delta T$",
+    ]
+    fig.legend(
+        handles, labels, loc="outside upper center", ncol=2, frameon=False,
+        fontsize=8.0, columnspacing=1.0, handletextpad=0.4, handlelength=2.6,
+        handler_map={tuple: HandlerTuple(ndivide=None, pad=0.12)},
     )
     return fig
 

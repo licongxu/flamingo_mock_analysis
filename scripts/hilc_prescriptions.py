@@ -21,10 +21,7 @@ LABELS = {
     "Mstar-1sigma": r"$M_\ast-1\sigma$",
     "LS8": "LS8",
 }
-SED_YML = (
-    "/scratch/scratch-lxu/agent_dev/auto_research_agent/pyilc/"
-    "input/fg_SEDs_default_params.yml"
-)
+SED_YML = str(REPO / "configs" / "fg_SEDs_flamingo_yang26.yml")
 
 
 @dataclass(frozen=True)
@@ -264,6 +261,7 @@ def write_hilc_yaml(
     deproj: DeprojCase = DEPROJ_NONE,
     mask_name: str | None = None,
     extra_tag: str = "",
+    ell_bin_edges: list[int] | None = None,
 ) -> Path:
     """Write an HILC config; identical ILC settings except paths and deprojection."""
     deproj_note = "" if deproj.n_deproj == 0 else f" ({deproj.label})"
@@ -325,6 +323,11 @@ def write_hilc_yaml(
         "sht_backend: ducc0",
         "wavelet_type: TopHatHarmonic",
         "BinSize: 50",
+    ]
+    if ell_bin_edges is not None:
+        # BinSize is what pyILC reads; run_ilc replaces ellbins when this line is set.
+        lines.append("ell_bin_edges: [" + ", ".join(str(x) for x in ell_bin_edges) + "]")
+    lines += [
         "",
     ]
     out = yaml_path(

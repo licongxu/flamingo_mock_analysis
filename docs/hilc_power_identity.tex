@@ -1,0 +1,207 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+\title{Why \(D_\ell^{\mathrm{rec}}\) is not \(D_\ell^{yy}\) plus a\\
+weight-filtered residual auto-spectrum}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Harmonic ILC is linear in the maps. The angular power spectrum is not.
+Therefore
+\[
+D_\ell(\hat y)\;\neq\; D_\ell(y)\;+\;D_\ell\bigl(F[\mathrm{CIB}+\mathrm{CMB}+n]\bigr)
+\]
+in general. The identity that \emph{does} hold is the quadratic expansion of
+\(D_\ell(\hat y)\) in the filtered components of the same operator \(F\)
+applied to the same inputs. The plotted quantity
+\((D_\ell^{\mathrm{rec}}-D_\ell^{yy})/D_\ell^{yy,\mathrm{fid}}\) is that
+difference for the HILC map against the noiseless Compton-\(y\) map. It is
+not a bug; it is the remainder after identifying ``signal'' with \(y\) rather
+than with \(F[\mathrm{tSZ}]\).
+\end{abstract}
+
+\section{The HILC operator}
+
+Write the six frequency maps as
+\begin{equation}
+  d_\nu \;=\; B_\nu\bigl(s^{\mathrm{CMB}}+s^{\mathrm{tSZ}}_\nu+s^{\mathrm{CIB}}_\nu\bigr)
+  \;+\; n_\nu,
+  \label{eq:d}
+\end{equation}
+with \(B_\nu\) the channel Gaussian beam and \(n_\nu\) homogeneous white
+noise (unbeamed). For a given sky (full sky or \(q>5\)) and deprojection,
+pyILC's top-hat harmonic ILC is a diagonal multiplier in harmonic space.
+On the full sky,
+\begin{equation}
+  a_{\ell m}(\hat y)
+  \;=\;
+  \sum_\nu F_\nu(\ell)\, a_{\ell m}(d_\nu),
+  \qquad
+  F_\nu(\ell)
+  \;=\;
+  w_\nu(\ell)\, T(\ell)\, \frac{B_{10}(\ell)}{B_\nu(\ell)},
+  \label{eq:F}
+\end{equation}
+where \(w_\nu(\ell)\) is piecewise constant on bins of width \(\Delta\ell=50\),
+\(T(\ell)\) is the edge taper, and \(B_{10}\) is the \(10'\) common beam.
+On the \(q>5\) sky the same form holds after replacing \(d_\nu\) by \(M d_\nu\)
+and \(w_\nu\) by the weights estimated from those masked maps:
+\begin{equation}
+  a_{\ell m}(\hat y^{q5})
+  \;=\;
+  \sum_\nu F_\nu^{q5}(\ell)\, a_{\ell m}(M d_\nu).
+  \label{eq:Fq5}
+\end{equation}
+Pixel multiplication by \(M\) and the harmonic filter \(F^{q5}\) do not
+commute. That is intended: the \(q>5\) reconstruction is a re-run of ILC on
+the cut sky, not the full-sky \(\hat y\) multiplied by \(M\).
+
+In either case the reconstruction is linear,
+\begin{equation}
+  \hat y \;=\; F[d]
+  \;=\; F[\mathrm{tSZ}] + F[\mathrm{CIB}] + F[\mathrm{CMB}] + F[n].
+  \label{eq:lin}
+\end{equation}
+Call \(t \equiv F[\mathrm{tSZ}]\) and \(r \equiv F[\mathrm{CIB}]+F[\mathrm{CMB}]+F[n]\),
+so \(\hat y = t+r\).
+
+\section{Power spectra are quadratic}
+
+Let \(D_\ell(\,\cdot\,)\) denote the binned
+\(\ell(\ell+1)C_\ell/2\pi\) obtained from a noise-debiased split-cross
+(\(r_1\times r_2\)) after MASTER decoupling and deconvolution of
+\(B_{10}^2 w_{\mathrm{pix}}^2\). Then
+\begin{equation}
+  D_\ell(\hat y)
+  \;=\;
+  D_\ell(t+r)
+  \;=\;
+  D_\ell(t) + D_\ell(r) + 2\, D_\ell(t,r).
+  \label{eq:quad}
+\end{equation}
+The cross \(D_\ell(t,r)\) expands into every mixed pair among tSZ, CIB, CMB
+and noise, each counted once as
+\(C_\ell(a_{r_1},b_{r_2})+C_\ell(b_{r_1},a_{r_2})\). There is no extra
+factor of two beyond that.
+
+\begin{proposition}
+\label{prop:closed}
+If \(t\) and \(r\) are obtained by applying the \emph{same} \(F\) to a
+partition of the \emph{same} inputs that produced \(\hat y\), then
+\eqref{eq:quad} is an identity: the autos of the four components plus those
+six crosses equal \(D_\ell(\hat y)\) to machine precision.
+\end{proposition}
+
+That is the only sense in which ``total \(=\) signal \(+\) residual''.
+The residual that belongs in the identity is \(D_\ell(r)+2D_\ell(t,r)\),
+not \(D_\ell(r)\) alone, and the signal is \(D_\ell(t)\), not \(D_\ell(y)\).
+
+\section{The noiseless Compton-\(y\) map is not \(t\)}
+
+The plotted black curves use the MASTER auto-spectrum of the input
+Compton-\(y\) map (pixel-window deconvolved). Call it \(D_\ell^{yy}\).
+The ILC constraint is
+\begin{equation}
+  \sum_\nu w_\nu(\ell)\, a_\nu^{\mathrm{tSZ}} \;=\; 1
+  \label{eq:cons}
+\end{equation}
+on the tSZ mixing vector, so \(t\) is a \(10'\)-beamed, tapered copy of \(y\),
+not \(y\) itself. After deconvolving \(B_{10}^2 w_{\mathrm{pix}}^2\) one has
+\(D_\ell(t)\approx D_\ell^{yy}\) on the full sky (measured ratio \(1.003\) at
+\(\ell=30.5\) for \(M_\ast-1\sigma\), CIB\(+\delta\beta\)). The equality is
+not algebraic:
+\begin{equation}
+  D_\ell(\hat y) - D_\ell^{yy}
+  \;=\;
+  \underbrace{\bigl[D_\ell(t)-D_\ell^{yy}\bigr]}_{\text{tSZ mismatch}}
+  + D_\ell(r) + 2\, D_\ell(t,r).
+  \label{eq:plot}
+\end{equation}
+The left-hand side is the plotted residual. It equals a weight-filtered
+foreground auto-spectrum only if \(D_\ell(t)=D_\ell^{yy}\) \emph{and} the
+crosses \(2D_\ell(t,r)\) are included in that residual.
+
+On the \(q>5\) sky an extra mismatch appears: \(D_\ell^{yy}\) is the full \(y\)
+map masked only inside MASTER, whereas \(t^{q5}=F^{q5}[M\,s^{\mathrm{tSZ}}]\).
+Because \(F^{q5}M\neq M F^{\mathrm{full}}\),
+\(D_\ell(t^{q5})\) need not track the masked \(D_\ell^{yy}\) even if
+\eqref{eq:cons} holds. Empirically, at \(\ell=30.5\) for \(M_\ast-1\sigma\),
+CIB\(+\delta\beta\),
+\begin{align*}
+  D_\ell(\hat y^{\mathrm{full}}, M\text{ at spectrum only})
+  &= 6.37\times 10^{-15},\\
+  D_\ell^{yy}(M\text{ at spectrum only})
+  &= 5.74\times 10^{-15},\\
+  D_\ell(\hat y^{q5}, M\text{ at spectrum})
+  &= 1.59\times 10^{-14}.
+\end{align*}
+The first two agree at the ten-percent level. The third is the re-run, and
+is larger because \(F^{q5}\) is a different operator. That difference is
+physical for the \(q>5\) HILC, not an arithmetic error.
+
+\section{A different operator does not close the identity}
+
+A harmonic reconstruction \(y_{\mathrm{coadd}}\) obtained by reading the
+saved \(w_\nu\), applying \eqref{eq:F} to component alms, and summing, obeys
+Proposition~\ref{prop:closed} for \emph{that} operator:
+\(D_\ell(y_{\mathrm{coadd}})=D_\ell(t_{\mathrm{coadd}}+r_{\mathrm{coadd}})\).
+If the component alms were masked differently from \eqref{eq:Fq5} (mask
+applied twice, or applied after filtering), then
+\(F_{\mathrm{coadd}}\neq F^{q5}\) and
+\begin{equation}
+  D_\ell(\hat y)-D_\ell(y_{\mathrm{coadd}})
+  \;=\;
+  D_\ell(\hat y-y_{\mathrm{coadd}})
+  + 2\, D_\ell(\hat y-y_{\mathrm{coadd}},\, y_{\mathrm{coadd}}).
+  \label{eq:gap}
+\end{equation}
+This gap is not missing power in \eqref{eq:quad}. It is the spectrum of two
+different fields. On the full sky \(F_{\mathrm{coadd}}\approx F\) and the gap
+collapses (\(\sim 0.02\,D_\ell^{yy}\) at \(\ell=30.5\)). On \(q>5\) it does
+not, because the coadd never implemented \eqref{eq:Fq5}.
+
+\section{What the figure shows}
+
+For each astrophysical variant and each sky,
+\begin{align}
+  \text{black:}
+  &\quad
+  \frac{D_\ell^{yy,\mathrm{var}}}{D_\ell^{yy,\mathrm{fid}}}-1,
+  \label{eq:black}\\
+  \text{colour:}
+  &\quad
+  \frac{D_\ell^{\mathrm{rec},\mathrm{var}}-D_\ell^{yy,\mathrm{var}}}
+       {D_\ell^{yy,\mathrm{fid}}}.
+  \label{eq:colour}
+\end{align}
+Adding them recovers
+\((D_\ell^{\mathrm{rec},\mathrm{var}}/D_\ell^{yy,\mathrm{fid}})-1\),
+which is the fractional change of the HILC map relative to the fiducial
+noiseless \(y\). It is \emph{not} required to equal the fractional
+weight-filtered CIB auto-spectrum.
+
+The shaded bands are
+\(\pm\sigma/D_\ell^{yy,\mathrm{fid}}\) with
+\(\sigma^2=\sigma_G^2+\sigma_T^2\) from the fiducial HILC split-cross of
+that same deprojection and sky. They are uncertainties on the reconstruction,
+normalised to the same denominator as the curves.
+
+\begin{remark}
+The statement ``reconstructed power \(=\) signal \(+\) residual'' is true
+if and only if (i)~signal means \(D_\ell(F[\mathrm{tSZ}])\), (ii)~residual
+means \(D_\ell(r)+2D_\ell(t,r)\), and (iii)~\(F\) and the inputs are those
+that produced \(\hat y\). Replacing (i) by \(D_\ell^{yy}\) or (iii) by a
+different filter makes the equality false without contradicting linearity.
+\end{remark}
+
+\end{document}
