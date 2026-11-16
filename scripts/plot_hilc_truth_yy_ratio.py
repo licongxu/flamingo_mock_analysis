@@ -103,6 +103,12 @@ def build_figure() -> plt.Figure:
     _, dl_fid_q5, cl_fid_q5, fsky_q5 = _truth("L1_m9", "masked")
     rel_full = rel_band("total", cl_fid_tot, fsky_tot, dl_fid_tot)
     rel_q5 = rel_band("masked", cl_fid_q5, fsky_q5, dl_fid_q5)
+    # Same ell window as the residual panels: the bin nearest ℓ=60 through 959.5.
+    keep = int(np.argmin(np.abs(ell - 60.0)))
+    ell = ell[keep:]
+    rel_full = rel_full[keep:]
+    rel_q5 = rel_q5[keep:]
+    l_min = float(ell[0])
 
     fig, axes = plt.subplots(
         1, 2, figsize=(7.2, 3.4), sharex=True, sharey=True, layout="constrained",
@@ -111,8 +117,8 @@ def build_figure() -> plt.Figure:
     for ax, run in zip(axes, VARIANTS):
         _, r_tot, _, _ = _truth(run, "total")
         _, r_q5, _, _ = _truth(run, "masked")
-        d_tot = r_tot / dl_fid_tot - 1.0
-        d_q5 = r_q5 / dl_fid_q5 - 1.0
+        d_tot = (r_tot / dl_fid_tot - 1.0)[keep:]
+        d_q5 = (r_q5 / dl_fid_q5 - 1.0)[keep:]
         _fill(ax, ell, rel_full, LINE_TOT, BAND_TOT, 1)
         _fill(ax, ell, rel_q5, LINE_Q5, BAND_Q5, 2)
         ax.axhline(0.0, color="k", lw=1.0, zorder=3)
@@ -122,8 +128,8 @@ def build_figure() -> plt.Figure:
         ax.semilogx(
             ell, d_q5, color=LINE_Q5, marker="o", ms=4.0, lw=2.0, zorder=5,
         )
-        ax.set_xlim(10.0, 959.5)
-        # Paper axis labels only the decades in view (10^1 and 10^2).
+        ax.set_xlim(l_min, 959.5)
+        # Same window as the residual panels, so the only decade label is 10^2.
         ax.xaxis.set_major_locator(LogLocator(base=10.0))
         ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
         ax.xaxis.set_minor_formatter(NullFormatter())
