@@ -49,6 +49,8 @@ STEM_FULL = "l1_m9_hilc_recovered_residuals_fullsky"
 STEM_MASK = "l1_m9_hilc_recovered_residuals_q5masked"
 STEM_DEPROJ = "l1_m9_hilc_recovered_residuals_deproj"
 STEM_CIB = "l1_m9_hilc_cib_residual_full_vs_masked"
+STEM_CIB_RAND = "l1_m9_hilc_cib_residual_full_vs_masked_randomized"
+PLOT_POINTS = DATA / "plot_points"
 STEM_CIB_PRESC = "l1_m9_hilc_cib_residual_nodeproj_prescriptions"
 STEM_CIB_PRESC_ONE = "l1_m9_hilc_cib_residual_nodeproj_prescriptions_full_vs_masked"
 STEM_CIB_FREQ = "l1_m9_cib_auto_by_freq_prescriptions"
@@ -328,29 +330,59 @@ def _scheme_legend():
     ]
 
 
-def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9") -> None:
-    ell, t = _truth(kind, run)
-    # Left edge is the bin nearest ℓ=60. Lower bins are not drawn.
-    keep = int(np.argmin(np.abs(ell - 60.0)))
-    ell = ell[keep:]
-    t = t[keep:]
-    l_min = float(ell[0])
+def recovered_series(kind: str, run: str = "L1_m9") -> dict[str, np.ndarray]:
+    """Plotted recovered-y series. Spectra are 10^12 D_ell, as on the figure."""
+    ell, truth = _truth(kind, run)
     n = len(ALL_DEPROJ)
-    ax.loglog(ell, t * SCALE, color="k", lw=1.8, zorder=4)
+    deproj = np.array([d.key for d in ALL_DEPROJ])
+    recovered = np.empty((n, ell.size), dtype=np.float64)
+    sigma_g_arr = np.empty((n, ell.size), dtype=np.float64)
+    dl_cib = np.empty((n, ell.size), dtype=np.float64)
+    dl_cmb = np.empty((n, ell.size), dtype=np.float64)
+    for i, d in enumerate(ALL_DEPROJ):
+        _, recovered[i] = _p18(d.key, kind, run)
+        sigma_g_arr[i] = sigma_g(d.key, kind, run)
+        dl_cib[i], dl_cmb[i] = _resid(run, d.key, kind)
+    sigma_t_arr = sigma_t(kind)
+    sigma = np.sqrt(sigma_g_arr**2 + sigma_t_arr**2)
+    shift = 1.05 ** (np.arange(n) - 0.5 * (n - 1))
+    y = recovered * SCALE
+    yerr = sigma * SCALE
+    keep = int(np.argmin(np.abs(ell - 60.0)))
+    return {
+        "ell": ell,
+        "in_figure": np.arange(ell.size) >= keep,
+        "truth": truth * SCALE,
+        "deproj": deproj,
+        "marker_ell": ell[None, :] * shift[:, None],
+        "recovered": y,
+        "yerr": yerr,
+        "yerr_lo": np.minimum(yerr, np.maximum(np.abs(y), 1e-40) * 0.99),
+        "sigma_g": sigma_g_arr * SCALE,
+        "sigma_t": sigma_t_arr * SCALE,
+        "cib": np.abs(dl_cib) * SCALE,
+        "cmb": np.abs(dl_cmb) * SCALE,
+        "xlim": np.array([float(ell[keep]), 959.5]),
+        "ylim": np.array([3.0e-7, 40.0]),
+    }
+
+
+def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9") -> None:
+    s = recovered_series(kind, run)
+    m = s["in_figure"]
+    ell = s["ell"][m]
+    # Left edge is the bin nearest ℓ=60. Lower bins are not drawn.
+    ax.loglog(ell, s["truth"][m], color="k", lw=1.8, zorder=4)
     for i, d in enumerate(ALL_DEPROJ):
         color, mk = COLORS[d.key], MARKERS[d.key]
-        x = ell * (1.05 ** (i - 0.5 * (n - 1)))
-        _, rec = _p18(d.key, kind, run)
-        sig = sigma_gt(d.key, kind, run)
         _errbar(
-            ax, x, rec[keep:] * SCALE, sig[keep:] * SCALE,
+            ax, s["marker_ell"][i, m], s["recovered"][i, m], s["yerr"][i, m],
             color=color, marker=mk,
         )
-        cib, cmb = _resid(run, d.key, kind)
-        ax.loglog(ell, np.abs(cib[keep:]) * SCALE, color=color, ls="-", lw=1.4, zorder=3)
-        ax.loglog(ell, np.abs(cmb[keep:]) * SCALE, color=color, ls="--", lw=1.2, zorder=2)
+        ax.loglog(ell, s["cib"][i, m], color=color, ls="-", lw=1.4, zorder=3)
+        ax.loglog(ell, s["cmb"][i, m], color=color, ls="--", lw=1.2, zorder=2)
     # Label only decades, so this window shows 10^2 and not the minor ticks.
-    ax.set_xlim(l_min, 959.5)
+    ax.set_xlim(float(s["xlim"][0]), float(s["xlim"][1]))
     ax.xaxis.set_major_locator(LogLocator(base=10.0))
     ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
     ax.xaxis.set_minor_formatter(NullFormatter())
@@ -397,6 +429,90 @@ def build_deproj_pair(nq: int) -> plt.Figure:
     _draw_combined(axes[1], "masked", rf"$q>5$ masked ($N={nq}$)", ylabel=False)
     fig.tight_layout()
     return fig
+
+
+def _save_points(stem: str, **arrays: np.ndarray) -> Path:
+    PLOT_POINTS.mkdir(parents=True, exist_ok=True)
+    path = PLOT_POINTS / f"{stem}.npz"
+    np.savez_compressed(path, **arrays)
+    print("wrote", path, flush=True)
+    return path
+
+
+def save_recovered_points() -> None:
+    note = np.array(
+        "Values are 10^12 D_ell as plotted. yerr combines the split-cross "
+        "Gaussian variance and the one-halo trispectrum. yerr_lo is the lower "
+        "bar drawn on the log axis. in_figure marks the bins on the figure, "
+        "from the bin nearest ell=60 through 959.5. marker_ell is the "
+        "horizontal offset of the recovered markers."
+    )
+    for kind, stem in (("total", STEM_FULL), ("masked", STEM_MASK)):
+        _save_points(stem, note=note, **recovered_series(kind))
+
+
+def cib_planckbin_series(tag: str) -> dict[str, np.ndarray]:
+    """Planck-bin CIB residual autos. Values are 10^12 |D_ell^CIB|."""
+    z = np.load(PS / "planckbin" / f"{tag}_cib_residual.npz")
+    ell = np.asarray(z["ell"], dtype=np.float64)
+    deproj = np.array([d.key for d in ALL_DEPROJ])
+    full = np.vstack([np.asarray(z[f"{key}_total"], dtype=np.float64) for key in deproj])
+    masked = np.vstack([np.asarray(z[f"{key}_masked"], dtype=np.float64) for key in deproj])
+    keep = int(np.argmin(np.abs(ell - 60.0)))
+    return {
+        "ell": ell,
+        "in_figure": np.arange(ell.size) >= keep,
+        "deproj": deproj,
+        "full": full * SCALE,
+        "masked": masked * SCALE,
+        "xlim": np.array([float(ell[keep]), float(ell[-1])]),
+        "ylim": np.array([7.0e-5, 3.0]),
+    }
+
+
+def build_cib_planckbin(tag: str, title: str) -> plt.Figure:
+    apply_pub_style()
+    s = cib_planckbin_series(tag)
+    m = s["in_figure"]
+    ell = s["ell"][m]
+    fig, ax = plt.subplots(figsize=(5.2, 4.6))
+    for i, d in enumerate(ALL_DEPROJ):
+        color = COLORS[d.key]
+        ax.loglog(ell, s["full"][i, m], color=color, ls="-", lw=1.6, label=d.label)
+        ax.loglog(ell, s["masked"][i, m], color=color, ls="--", lw=1.4)
+    ax.set_xlim(float(s["xlim"][0]), float(s["xlim"][1]))
+    ax.set_ylim(float(s["ylim"][0]), float(s["ylim"][1]))
+    ax.xaxis.set_major_locator(LogLocator(base=10.0))
+    ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    ax.set_xlabel(r"$\ell$")
+    ax.set_ylabel(r"$10^{12}|D_\ell^{\mathrm{CIB}}|$")
+    ax.set_title(title, fontsize=12)
+    extra = [
+        Line2D([0], [0], color="0.3", ls="-", lw=1.5, label="full sky"),
+        Line2D([0], [0], color="0.3", ls="--", lw=1.4, label=r"$q>5$ masked"),
+    ]
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(
+        handles + extra, labels + [e.get_label() for e in extra],
+        frameon=False, fontsize=7.5, loc="upper left",
+    )
+    ax.grid(False)
+    fig.tight_layout()
+    return fig
+
+
+def save_cib_planckbin_points() -> None:
+    note = np.array(
+        "full and masked are 10^12 |D_ell^CIB| from the Planck-bin residual "
+        "files. This figure has no error bars. in_figure marks bins from the "
+        "bin nearest ell=60 through the last stored bin."
+    )
+    for tag, stem in (
+        ("L1_m9", STEM_CIB),
+        ("L1_m9_cibshuffle", STEM_CIB_RAND),
+    ):
+        _save_points(stem, note=note, **cib_planckbin_series(tag))
 
 
 def build_cib_compare() -> plt.Figure:
