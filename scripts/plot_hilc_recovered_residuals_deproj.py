@@ -17,6 +17,7 @@ import healpy as hp
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
+from matplotlib.ticker import LogFormatterMathtext, LogLocator, NullFormatter
 
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
@@ -340,8 +341,12 @@ def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9
         ax.loglog(ell, np.abs(cib) * SCALE, color=color, ls="-", lw=1.4, zorder=3)
         ax.loglog(ell, np.abs(cmb) * SCALE, color=color, ls="--", lw=1.2, zorder=2)
     # Drop bins well below the paper range; first marker is the bin nearest ℓ=60.
+    # Label only decades, so this window shows 10^2 and not the minor ticks.
     l_min = float(ell[int(np.argmin(np.abs(ell - 60.0)))])
     ax.set_xlim(l_min, 959.5)
+    ax.xaxis.set_major_locator(LogLocator(base=10.0))
+    ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
+    ax.xaxis.set_minor_formatter(NullFormatter())
     ax.set_ylim(3.0e-7, 40.0)
     ax.set_xlabel(r"$\ell$")
     if ylabel:
