@@ -104,7 +104,7 @@ def ratio_table() -> dict[str, np.ndarray]:
     _, dl_fid_q5, cl_fid_q5, fsky_q5 = _truth("L1_m9", "masked")
     rel_full = rel_band("total", cl_fid_tot, fsky_tot, dl_fid_tot)
     rel_q5 = rel_band("masked", cl_fid_q5, fsky_q5, dl_fid_q5)
-    keep = int(np.argmin(np.abs(ell - 60.0)))
+    keep = int(np.flatnonzero(ell > 60.0)[0])
     ratio_total = []
     ratio_masked = []
     dl_total = []
@@ -140,7 +140,7 @@ def build_figure() -> plt.Figure:
     ell = table["ell"][m]
     rel_full = table["band_total"][m]
     rel_q5 = table["band_masked"][m]
-    # Same ell window as the residual panels: the bin nearest ℓ=60 through 959.5.
+    # Same ell window as the residual panels: the first bin with ℓ>60 through 959.5.
     l_min = float(ell[0])
 
     fig, axes = plt.subplots(
@@ -193,7 +193,7 @@ def save_ratio_points() -> None:
     note = np.array(
         "ratio_* is (D - D_fid) / D_fid. band_* is the symmetric error bar "
         "sigma / D_fid, with sigma^2 = sigma_G^2 + sigma_T^2 on the fiducial "
-        "spectrum. in_figure marks bins from the bin nearest ell=60 through 959.5."
+        "spectrum. in_figure marks bins from the first ell>60 bin through 959.5."
     )
     np.savez_compressed(path, note=note, **ratio_table())
     print("wrote", path, flush=True)

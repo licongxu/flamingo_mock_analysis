@@ -348,7 +348,7 @@ def recovered_series(kind: str, run: str = "L1_m9") -> dict[str, np.ndarray]:
     shift = 1.05 ** (np.arange(n) - 0.5 * (n - 1))
     y = recovered * SCALE
     yerr = sigma * SCALE
-    keep = int(np.argmin(np.abs(ell - 60.0)))
+    keep = int(np.flatnonzero(ell > 60.0)[0])
     return {
         "ell": ell,
         "in_figure": np.arange(ell.size) >= keep,
@@ -371,7 +371,7 @@ def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9
     s = recovered_series(kind, run)
     m = s["in_figure"]
     ell = s["ell"][m]
-    # Left edge is the bin nearest ℓ=60. Lower bins are not drawn.
+    # Left edge is the first bin with ℓ>60. Lower bins are not drawn.
     ax.loglog(ell, s["truth"][m], color="k", lw=1.8, zorder=4)
     for i, d in enumerate(ALL_DEPROJ):
         color, mk = COLORS[d.key], MARKERS[d.key]
@@ -444,7 +444,7 @@ def save_recovered_points() -> None:
         "Values are 10^12 D_ell as plotted. yerr combines the split-cross "
         "Gaussian variance and the one-halo trispectrum. yerr_lo is the lower "
         "bar drawn on the log axis. in_figure marks the bins on the figure, "
-        "from the bin nearest ell=60 through 959.5. marker_ell is the "
+        "from the first bin with ell>60 through 959.5. marker_ell is the "
         "horizontal offset of the recovered markers."
     )
     for kind, stem in (("total", STEM_FULL), ("masked", STEM_MASK)):
@@ -458,7 +458,7 @@ def cib_planckbin_series(tag: str) -> dict[str, np.ndarray]:
     deproj = np.array([d.key for d in ALL_DEPROJ])
     full = np.vstack([np.asarray(z[f"{key}_total"], dtype=np.float64) for key in deproj])
     masked = np.vstack([np.asarray(z[f"{key}_masked"], dtype=np.float64) for key in deproj])
-    keep = int(np.argmin(np.abs(ell - 60.0)))
+    keep = int(np.flatnonzero(ell > 60.0)[0])
     return {
         "ell": ell,
         "in_figure": np.arange(ell.size) >= keep,
@@ -506,7 +506,7 @@ def save_cib_planckbin_points() -> None:
     note = np.array(
         "full and masked are 10^12 |D_ell^CIB| from the Planck-bin residual "
         "files. This figure has no error bars. in_figure marks bins from the "
-        "bin nearest ell=60 through the last stored bin."
+        "first bin with ell>60 through the last stored bin."
     )
     for tag, stem in (
         ("L1_m9", STEM_CIB),
