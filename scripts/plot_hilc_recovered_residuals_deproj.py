@@ -339,7 +339,9 @@ def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9
         cib, cmb = _resid(run, d.key, kind)
         ax.loglog(ell, np.abs(cib) * SCALE, color=color, ls="-", lw=1.4, zorder=3)
         ax.loglog(ell, np.abs(cmb) * SCALE, color=color, ls="--", lw=1.2, zorder=2)
-    ax.set_xlim(10.0, 959.5)
+    # Drop bins well below the paper range; first marker is the bin nearest ℓ=60.
+    l_min = float(ell[int(np.argmin(np.abs(ell - 60.0)))])
+    ax.set_xlim(l_min, 959.5)
     ax.set_ylim(3.0e-7, 40.0)
     ax.set_xlabel(r"$\ell$")
     if ylabel:
