@@ -403,17 +403,15 @@ def _draw_combined(
 
 def build_combined(kind: str, title: str, run: str = "L1_m9") -> plt.Figure:
     apply_pub_style()
-    fig, ax = plt.subplots(figsize=(5.2, 4.6), layout="constrained")
+    fig, ax = plt.subplots(figsize=(5.2, 4.6))
     _draw_combined(ax, kind, title, ylabel=True, run=run, legend=False)
-    fig.legend(
-        handles=_scheme_legend(),
-        loc="outside lower center",
-        ncol=2,
-        frameon=False,
-        fontsize=7,
-        columnspacing=1.0,
-        handletextpad=0.4,
+    # Two columns keep this block in the empty upper-left corner, above the spectra.
+    ax.legend(
+        handles=_scheme_legend(), frameon=False, fontsize=7,
+        loc="upper left", ncol=2, borderaxespad=0.25,
+        columnspacing=0.8, handletextpad=0.35,
     )
+    fig.tight_layout()
     return fig
 
 
