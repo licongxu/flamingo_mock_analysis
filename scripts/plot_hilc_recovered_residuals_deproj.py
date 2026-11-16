@@ -330,22 +330,27 @@ def _scheme_legend():
 
 def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9") -> None:
     ell, t = _truth(kind, run)
+    # Left edge is the bin nearest ℓ=60. Lower bins are not drawn.
+    keep = int(np.argmin(np.abs(ell - 60.0)))
+    ell = ell[keep:]
+    t = t[keep:]
+    l_min = float(ell[0])
     n = len(ALL_DEPROJ)
     ax.loglog(ell, t * SCALE, color="k", lw=1.8, zorder=4)
     for i, d in enumerate(ALL_DEPROJ):
         color, mk = COLORS[d.key], MARKERS[d.key]
         x = ell * (1.05 ** (i - 0.5 * (n - 1)))
         _, rec = _p18(d.key, kind, run)
-        _errbar(ax, x, rec * SCALE, sigma_gt(d.key, kind, run) * SCALE, color=color, marker=mk)
+        sig = sigma_gt(d.key, kind, run)
+        _errbar(
+            ax, x, rec[keep:] * SCALE, sig[keep:] * SCALE,
+            color=color, marker=mk,
+        )
         cib, cmb = _resid(run, d.key, kind)
-        ax.loglog(ell, np.abs(cib) * SCALE, color=color, ls="-", lw=1.4, zorder=3)
-        ax.loglog(ell, np.abs(cmb) * SCALE, color=color, ls="--", lw=1.2, zorder=2)
-    # Drop bins well below the paper range; first marker is the bin nearest ℓ=60.
-    # Recovered points are shifted in ℓ, so the left edge has to include that shift.
+        ax.loglog(ell, np.abs(cib[keep:]) * SCALE, color=color, ls="-", lw=1.4, zorder=3)
+        ax.loglog(ell, np.abs(cmb[keep:]) * SCALE, color=color, ls="--", lw=1.2, zorder=2)
     # Label only decades, so this window shows 10^2 and not the minor ticks.
-    l_min = float(ell[int(np.argmin(np.abs(ell - 60.0)))])
-    left = l_min * (1.05 ** (-0.5 * (n - 1)))
-    ax.set_xlim(left / 1.04, 959.5)
+    ax.set_xlim(l_min, 959.5)
     ax.xaxis.set_major_locator(LogLocator(base=10.0))
     ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
     ax.xaxis.set_minor_formatter(NullFormatter())
