@@ -221,11 +221,8 @@ def build_figure() -> plt.Figure:
 
 
 RESIDUAL_SPECS = (
-    ("total", "nodeproj", "-"),
     ("masked", "nodeproj", "--"),
     ("masked", "deproj_cib", "--"),
-    ("masked", "deproj_cib_dbeta", "--"),
-    ("masked", "deproj_cib_dbeta_cmb", "-."),
     ("masked", "deproj_moments", ":"),
 )
 FRAC_STEM = "l1_m9_hilc_feedback_fractional_fg_residual"
@@ -272,10 +269,8 @@ def build_fractional_figure(
     bands = (
         ("nodeproj", "total", 1),
         ("deproj_moments", "masked", 2),
-        ("deproj_cib_dbeta_cmb", "masked", 3),
-        ("deproj_cib_dbeta", "masked", 4),
-        ("deproj_cib", "masked", 5),
-        ("nodeproj", "masked", 6),
+        ("deproj_cib", "masked", 3),
+        ("nodeproj", "masked", 4),
     )
 
     fig, axes = plt.subplots(
@@ -327,21 +322,15 @@ def build_fractional_figure(
     handles = [
         Line2D([0], [0], color="k", marker="o", lw=2.2, ms=5.0),
         Line2D([0], [0], color=LINE_Q5, marker="o", lw=2.2, ms=5.0),
-        _handle(*_band_colors("nodeproj", "total"), "o", "-"),
         _handle(*_band_colors("nodeproj", "masked"), "o", "--"),
         _handle(REC_COLORS["deproj_cib"], REC_COLORS["deproj_cib"], "s", "--"),
-        _handle(REC_COLORS["deproj_cib_dbeta"], REC_COLORS["deproj_cib_dbeta"], "^", "--"),
-        _handle(REC_COLORS["deproj_cib_dbeta_cmb"], REC_COLORS["deproj_cib_dbeta_cmb"], "v", "-."),
         _handle(REC_COLORS["deproj_moments"], REC_COLORS["deproj_moments"], "D", ":"),
     ]
     labels = [
         r"Noiseless $y$, total",
         r"Noiseless $y$, $q>5$",
-        r"FG residual, total, no deproj.",
         r"FG residual, $q>5$, no deproj.",
         r"FG residual, $q>5$, CIB",
-        r"FG residual, $q>5$, CIB+$\delta\beta$",
-        r"FG residual, $q>5$, CIB+$\delta\beta$+CMB",
         r"FG residual, $q>5$, CIB+$\delta\beta$+$\delta T$",
     ]
     fig.legend(
