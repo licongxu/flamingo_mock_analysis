@@ -367,7 +367,9 @@ def recovered_series(kind: str, run: str = "L1_m9") -> dict[str, np.ndarray]:
     }
 
 
-def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9") -> None:
+def _draw_combined(
+    ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9", legend: bool = True,
+) -> None:
     s = recovered_series(kind, run)
     m = s["in_figure"]
     ell = s["ell"][m]
@@ -391,18 +393,27 @@ def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9
     if ylabel:
         ax.set_ylabel(r"$10^{12}D_\ell$")
     ax.set_title(title, fontsize=12)
-    ax.legend(
-        handles=_scheme_legend(), frameon=False, fontsize=7,
-        loc="upper left", ncol=1, borderaxespad=0.3,
-    )
+    if legend:
+        ax.legend(
+            handles=_scheme_legend(), frameon=False, fontsize=7,
+            loc="upper left", ncol=1, borderaxespad=0.3,
+        )
     ax.grid(False)
 
 
 def build_combined(kind: str, title: str, run: str = "L1_m9") -> plt.Figure:
     apply_pub_style()
-    fig, ax = plt.subplots(figsize=(5.2, 4.6))
-    _draw_combined(ax, kind, title, ylabel=True, run=run)
-    fig.tight_layout()
+    fig, ax = plt.subplots(figsize=(5.2, 4.6), layout="constrained")
+    _draw_combined(ax, kind, title, ylabel=True, run=run, legend=False)
+    fig.legend(
+        handles=_scheme_legend(),
+        loc="outside lower center",
+        ncol=2,
+        frameon=False,
+        fontsize=7,
+        columnspacing=1.0,
+        handletextpad=0.4,
+    )
     return fig
 
 
