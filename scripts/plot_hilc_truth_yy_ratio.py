@@ -19,6 +19,7 @@ import numpy as np
 from matplotlib.legend_handler import HandlerTuple
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.ticker import LogFormatterMathtext, LogLocator, NullFormatter
 
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
@@ -41,6 +42,7 @@ COV_FULLSKY = Path(
     "/final/covariance/cov_trispectrum_L1_m9_customgnfw_qfrommap_fullsky_Dl_yy_binned_18.npy"
 )
 COV_Q5 = DATA / "cov_trispectrum_L1_m9_ilc_q5_Dl_yy_binned_18.npy"
+PLOT_POINTS = DATA / "plot_points"
 
 VARIANTS = ("fgas-8sigma", "Mstar-1sigma")
 ELL_MIN = np.array(
@@ -96,22 +98,59 @@ def _handle(line, band, marker):
     )
 
 
-def build_figure() -> plt.Figure:
-    apply_pub_style()
+def ratio_table() -> dict[str, np.ndarray]:
+    """Plotted variant/fiducial ratios. ``band_*`` is the ± error bar."""
     ell, dl_fid_tot, cl_fid_tot, fsky_tot = _truth("L1_m9", "total")
     _, dl_fid_q5, cl_fid_q5, fsky_q5 = _truth("L1_m9", "masked")
     rel_full = rel_band("total", cl_fid_tot, fsky_tot, dl_fid_tot)
     rel_q5 = rel_band("masked", cl_fid_q5, fsky_q5, dl_fid_q5)
+    keep = int(np.flatnonzero(ell > 60.0)[0])
+    ratio_total = []
+    ratio_masked = []
+    dl_total = []
+    dl_masked = []
+    for run in VARIANTS:
+        _, r_tot, _, _ = _truth(run, "total")
+        _, r_q5, _, _ = _truth(run, "masked")
+        ratio_total.append(r_tot / dl_fid_tot - 1.0)
+        ratio_masked.append(r_q5 / dl_fid_q5 - 1.0)
+        dl_total.append(r_tot)
+        dl_masked.append(r_q5)
+    return {
+        "ell": ell,
+        "in_figure": np.arange(ell.size) >= keep,
+        "variant": np.array(VARIANTS),
+        "ratio_total": np.vstack(ratio_total),
+        "ratio_masked": np.vstack(ratio_masked),
+        "band_total": rel_full,
+        "band_masked": rel_q5,
+        "dl_fid_total": dl_fid_tot,
+        "dl_fid_masked": dl_fid_q5,
+        "dl_total": np.vstack(dl_total),
+        "dl_masked": np.vstack(dl_masked),
+        "xlim": np.array([float(ell[keep]), 959.5]),
+        "ylim": np.array([-0.3, 0.3]),
+    }
+
+
+def build_figure() -> plt.Figure:
+    apply_pub_style()
+    table = ratio_table()
+    m = table["in_figure"]
+    ell = table["ell"][m]
+    rel_full = table["band_total"][m]
+    rel_q5 = table["band_masked"][m]
+    # Same ell window as the residual panels: the first bin with ℓ>60 through 959.5.
+    l_min = float(ell[0])
 
     fig, axes = plt.subplots(
         1, 2, figsize=(7.2, 3.4), sharex=True, sharey=True, layout="constrained",
     )
     fig.set_constrained_layout_pads(w_pad=0.02, h_pad=0.02, wspace=0.03, hspace=0.02)
     for ax, run in zip(axes, VARIANTS):
-        _, r_tot, _, _ = _truth(run, "total")
-        _, r_q5, _, _ = _truth(run, "masked")
-        d_tot = r_tot / dl_fid_tot - 1.0
-        d_q5 = r_q5 / dl_fid_q5 - 1.0
+        i = VARIANTS.index(run)
+        d_tot = table["ratio_total"][i, m]
+        d_q5 = table["ratio_masked"][i, m]
         _fill(ax, ell, rel_full, LINE_TOT, BAND_TOT, 1)
         _fill(ax, ell, rel_q5, LINE_Q5, BAND_Q5, 2)
         ax.axhline(0.0, color="k", lw=1.0, zorder=3)
@@ -121,7 +160,11 @@ def build_figure() -> plt.Figure:
         ax.semilogx(
             ell, d_q5, color=LINE_Q5, marker="o", ms=4.0, lw=2.0, zorder=5,
         )
-        ax.set_xlim(10.0, 959.5)
+        ax.set_xlim(l_min, 959.5)
+        # Same window as the residual panels, so the only decade label is 10^2.
+        ax.xaxis.set_major_locator(LogLocator(base=10.0))
+        ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
+        ax.xaxis.set_minor_formatter(NullFormatter())
         ax.set_title(LABELS.get(run, run), fontsize=12)
         ax.set_xlabel(r"$\ell$")
         ax.grid(False)
@@ -142,6 +185,18 @@ def build_figure() -> plt.Figure:
         labelspacing=0.35,
     )
     return fig
+
+
+def save_ratio_points() -> None:
+    PLOT_POINTS.mkdir(parents=True, exist_ok=True)
+    path = PLOT_POINTS / f"{STEM}.npz"
+    note = np.array(
+        "ratio_* is (D - D_fid) / D_fid. band_* is the symmetric error bar "
+        "sigma / D_fid, with sigma^2 = sigma_G^2 + sigma_T^2 on the fiducial "
+        "spectrum. in_figure marks bins from the first ell>60 bin through 959.5."
+    )
+    np.savez_compressed(path, note=note, **ratio_table())
+    print("wrote", path, flush=True)
 
 
 def main() -> None:
