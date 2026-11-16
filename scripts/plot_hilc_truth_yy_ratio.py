@@ -19,6 +19,7 @@ import numpy as np
 from matplotlib.legend_handler import HandlerTuple
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.ticker import LogFormatterMathtext, LogLocator, NullFormatter
 
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
@@ -122,6 +123,10 @@ def build_figure() -> plt.Figure:
             ell, d_q5, color=LINE_Q5, marker="o", ms=4.0, lw=2.0, zorder=5,
         )
         ax.set_xlim(10.0, 959.5)
+        # Paper axis labels only the decades in view (10^1 and 10^2).
+        ax.xaxis.set_major_locator(LogLocator(base=10.0))
+        ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
+        ax.xaxis.set_minor_formatter(NullFormatter())
         ax.set_title(LABELS.get(run, run), fontsize=12)
         ax.set_xlabel(r"$\ell$")
         ax.grid(False)

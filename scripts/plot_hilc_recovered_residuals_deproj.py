@@ -341,9 +341,11 @@ def _draw_combined(ax, kind: str, title: str, *, ylabel: bool, run: str = "L1_m9
         ax.loglog(ell, np.abs(cib) * SCALE, color=color, ls="-", lw=1.4, zorder=3)
         ax.loglog(ell, np.abs(cmb) * SCALE, color=color, ls="--", lw=1.2, zorder=2)
     # Drop bins well below the paper range; first marker is the bin nearest ℓ=60.
+    # Recovered points are shifted in ℓ, so the left edge has to include that shift.
     # Label only decades, so this window shows 10^2 and not the minor ticks.
     l_min = float(ell[int(np.argmin(np.abs(ell - 60.0)))])
-    ax.set_xlim(l_min, 959.5)
+    left = l_min * (1.05 ** (-0.5 * (n - 1)))
+    ax.set_xlim(left / 1.04, 959.5)
     ax.xaxis.set_major_locator(LogLocator(base=10.0))
     ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
     ax.xaxis.set_minor_formatter(NullFormatter())
