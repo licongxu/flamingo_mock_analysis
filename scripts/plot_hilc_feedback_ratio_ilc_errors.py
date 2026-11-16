@@ -19,6 +19,7 @@ import numpy as np
 from matplotlib.legend_handler import HandlerTuple
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.ticker import LogFormatterMathtext, LogLocator, NullFormatter
 
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
@@ -264,7 +265,10 @@ def build_fractional_figure(
     apply_pub_style()
     ell, dl_fid_tot, _, _ = truth_spec("L1_m9", "total")
     _, dl_fid_q5, _, _ = truth_spec("L1_m9", "masked")
-    fid = {"total": dl_fid_tot, "masked": dl_fid_q5}
+    keep = int(np.flatnonzero(ell > 60.0)[0])
+    ell = ell[keep:]
+    fid_full = {"total": dl_fid_tot, "masked": dl_fid_q5}
+    fid = {k: v[keep:] for k, v in fid_full.items()}
     bands = (
         ("nodeproj", "total", 1),
         ("deproj_moments", "masked", 2),
@@ -279,23 +283,27 @@ def build_fractional_figure(
     )
     fig.set_constrained_layout_pads(w_pad=0.02, h_pad=0.02, wspace=0.03, hspace=0.02)
     for ax, run in zip(axes, VARIANTS):
-        yy_tot = _truth_dl(run, "total")
-        yy_q5 = _truth_dl(run, "masked")
+        yy_tot = _truth_dl(run, "total")[keep:]
+        yy_q5 = _truth_dl(run, "masked")[keep:]
         yy = {"total": yy_tot, "masked": yy_q5}
         for deproj, kind, zorder in bands:
             line, band = _band_colors(deproj, kind)
-            _fill0(ax, ell, rel_band(deproj, kind, fid[kind]), line, band, zorder)
+            _fill0(
+                ax, ell, rel_band(deproj, kind, fid_full[kind])[keep:],
+                line, band, zorder,
+            )
         ax.axhline(0.0, color="k", lw=1.0, zorder=7)
         ax.semilogx(
-            ell, yy_tot / dl_fid_tot - 1.0,
+            ell, yy_tot / fid["total"] - 1.0,
             color="k", marker="o", ms=4.5, lw=2.2, zorder=11,
         )
         ax.semilogx(
-            ell, yy_q5 / dl_fid_q5 - 1.0,
+            ell, yy_q5 / fid["masked"] - 1.0,
             color=LINE_Q5, marker="o", ms=4.5, lw=2.2, zorder=12,
         )
         for kind, deproj, ls in RESIDUAL_SPECS:
             _, dl_rec = _p18(run, deproj, kind)
+            dl_rec = dl_rec[keep:]
             yy_sub = fid[kind] if subtract == "fiducial" else yy[kind]
             frac = (dl_rec - yy_sub) / fid[kind]
             ax.semilogx(
@@ -303,7 +311,10 @@ def build_fractional_figure(
                 marker=REC_MARKERS[deproj],
                 ms=3.6, lw=1.3, ls=ls, zorder=8,
             )
-        ax.set_xlim(10.0, 959.5)
+        ax.set_xlim(float(ell[0]), 959.5)
+        ax.xaxis.set_major_locator(LogLocator(base=10.0))
+        ax.xaxis.set_major_formatter(LogFormatterMathtext(base=10.0))
+        ax.xaxis.set_minor_formatter(NullFormatter())
         if ylim is not None:
             ax.set_ylim(*ylim)
         ax.set_title(LABELS.get(run, run), fontsize=12)

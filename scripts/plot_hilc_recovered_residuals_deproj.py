@@ -496,7 +496,6 @@ def build_cib_planckbin(tag: str, title: str) -> plt.Figure:
     ax.xaxis.set_minor_formatter(NullFormatter())
     ax.set_xlabel(r"$\ell$")
     ax.set_ylabel(r"$10^{12}|D_\ell^{\mathrm{CIB}}|$")
-    ax.set_title(title, fontsize=12)
     extra = [
         Line2D([0], [0], color="0.3", ls="-", lw=1.5, label="full sky"),
         Line2D([0], [0], color="0.3", ls="--", lw=1.4, label=r"$q>5$ masked"),
